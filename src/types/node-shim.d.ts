@@ -21,6 +21,9 @@ declare module "node:fs" {
   export function mkdirSync(path: string, options?: { recursive?: boolean }): void;
   export function existsSync(path: string): boolean;
   export function readFileSync(path: string, encoding: "utf8"): string;
+  export function appendFileSync(path: string, data: string, options?: { encoding?: "utf8" }): void;
+  export function statSync(path: string): { size: number };
+  export function renameSync(oldPath: string, newPath: string): void;
   export function rmSync(path: string, options?: { force?: boolean }): void;
 }
 
@@ -28,6 +31,10 @@ declare module "node:path" {
   export function resolve(...paths: string[]): string;
   export function dirname(path: string): string;
   export function join(...paths: string[]): string;
+}
+
+declare module "node:os" {
+  export function tmpdir(): string;
 }
 
 declare module "node:http" {

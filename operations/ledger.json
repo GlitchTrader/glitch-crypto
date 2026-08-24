@@ -2,7 +2,7 @@
   "schema_version": "architectonic.rail.v1",
   "metadata": {
     "project": "glitch-crypto",
-    "updated_utc": "2026-08-24T22:10:00Z",
+    "updated_utc": "2026-08-24T22:40:00Z",
     "source_map": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
     "status_authority": "operations/ledger.json"
   },
@@ -47,9 +47,13 @@
         ],
         "ticket": "https://github.com/GlitchTrader/glitch-crypto/issues/4",
         "spec": "operations/specs/GC-002/spec.md",
+        "active_spec": "operations/specs/GC-002/stream-spec.md",
         "phase": "binance-usdm-supervised-streams",
         "phase_a_status": "complete",
         "phase_a_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/6",
+        "phase_b_status": "code_complete_ci_green_runtime_evidence_pending",
+        "phase_b_branch": "architect/gc-002-binance-streams",
+        "phase_b_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/7",
         "acceptance": [
           "official capability contract recorded",
           "read-only endpoint authority is explicit and fail-closed",
@@ -65,10 +69,14 @@
           "local isolated phase-A gate: strict TypeScript build and 10/10 Binance shadow tests passing",
           "official Binance JavaScript USDⓈ-M connector inspected at commit 092e4f289e9047114fb8ec66256510cc207e16bb",
           "remote phase-A commit: c967a59a67611cd09234f97e971225fe78879dde",
-          "remote phase-A CI: success in GitHub Actions run 32782743337",
-          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/6 over https://github.com/GlitchTrader/glitch-crypto/pull/3"
+          "remote phase-A CI: success in GitHub Actions run 32782846560",
+          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/6 over https://github.com/GlitchTrader/glitch-crypto/pull/3",
+          "local isolated phase-B gate: strict TypeScript build and 18/18 supervised-stream tests passing",
+          "remote phase-B implementation commit: 567c5084535d7d21e89d8242bf5e117477ec9f10",
+          "remote full stacked phase-B CI: strict TypeScript build and 27/27 tests passing in GitHub Actions run 32785239711",
+          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/7 over https://github.com/GlitchTrader/glitch-crypto/pull/6"
         ],
-        "notes": "Phase A is complete and CI-green. GC-002 remains active at supervised public/private transport; Binance is still only the first shadow benchmark, not an accepted production mutation venue."
+        "notes": "Phase A is complete. Phase B code is complete and CI-green, but remains unaccepted for production use until observed public fixtures and authenticated private fixtures are captured, replayed, and reviewed. Binance remains a shadow benchmark, not an accepted mutation venue."
       },
       {
         "id": "GC-003",
