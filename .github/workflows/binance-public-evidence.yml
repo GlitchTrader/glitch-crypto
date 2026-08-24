@@ -6,7 +6,7 @@ on:
       duration_seconds:
         description: Finite public capture duration (5-300 seconds)
         required: false
-        default: "15"
+        default: "30"
       symbol:
         description: Binance USD-M perpetual symbol
         required: false
@@ -18,6 +18,7 @@ on:
       - .github/workflows/binance-public-evidence.yml
       - src/venue/binance-usdm/evidence-cli.ts
       - src/venue/binance-usdm/public-evidence.ts
+      - src/venue/binance-usdm/order-book.ts
 
 permissions:
   contents: read
@@ -41,7 +42,7 @@ jobs:
       - run: npm install
       - run: npm run build
       - name: Capture finite sanitized Futures Testnet public evidence
-        run: npm run binance:evidence -- capture-public "${{ inputs.duration_seconds || '15' }}"
+        run: npm run binance:evidence -- capture-public "${{ inputs.duration_seconds || '30' }}"
       - name: Upload evidence and manifest
         if: always()
         uses: actions/upload-artifact@v4
