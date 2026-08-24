@@ -2,12 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { TradingEngine } from "../src/core/trading-engine.js";
 import { GlitchDatabase } from "../src/storage/database.js";
 import { PaperVenue } from "../src/venue/paper-venue.js";
 
- test("trade history, journal, and receipts survive restart", () => {
-  const path = `/tmp/glitch-crypto-${randomUUID()}.sqlite`;
+test("trade history, journal, and receipts survive restart", () => {
+  const path = join(tmpdir(), `glitch-crypto-${randomUUID()}.sqlite`);
   try {
     let database = new GlitchDatabase(path, 100_000, 6_000_000);
     database.setGatewayMode("shadow");

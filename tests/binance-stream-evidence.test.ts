@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   InMemoryBinanceStreamEvidenceSink,
   JsonlBinanceStreamEvidenceSink,
@@ -48,7 +50,7 @@ test("stream evidence replays public and private state deterministically", () =>
 });
 
 test("JSONL evidence is bounded, rotated, and credential-free", () => {
-  const path = `/tmp/glitch-binance-evidence-${randomUUID()}.jsonl`;
+  const path = join(tmpdir(), `glitch-binance-evidence-${randomUUID()}.jsonl`);
   const backup = `${path}.1`;
   try {
     const sink = new JsonlBinanceStreamEvidenceSink(path, {

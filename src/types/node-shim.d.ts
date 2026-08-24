@@ -33,6 +33,10 @@ declare module "node:path" {
   export function join(...paths: string[]): string;
 }
 
+declare module "node:os" {
+  export function tmpdir(): string;
+}
+
 declare module "node:http" {
   export function createServer(handler: (request: any, response: any) => void | Promise<void>): any;
 }
