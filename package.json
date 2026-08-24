@@ -1,6 +1,6 @@
 {
   "name": "glitch-crypto",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Probabilistic crypto cognition inside deterministic venue-native execution.",
@@ -12,7 +12,8 @@
     "test": "npm run build && node --test dist/tests/*.test.js",
     "check": "npm run build && npm test",
     "start": "node --enable-source-maps dist/src/index.js",
-    "cli": "node --enable-source-maps dist/src/cli.js"
+    "cli": "node --enable-source-maps dist/src/cli.js",
+    "binance:shadow": "node --enable-source-maps dist/src/venue/binance-usdm/cli.js"
   },
   "devDependencies": {
     "typescript": "5.8.3"
