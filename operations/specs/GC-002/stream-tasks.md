@@ -11,7 +11,7 @@
 - [x] B009 Implement public/account/replay CLI modes.
 - [x] B010 Bound private-event deduplication memory.
 - [x] B011 Add focused deterministic tests.
-- [ ] B012 Run the full stacked repository gate.
-- [ ] B013 Open the stacked draft PR and record CI evidence.
+- [x] B012 Run the full stacked repository gate.
+- [x] B013 Open the stacked draft PR and record CI evidence.
 - [ ] B014 Capture observed public-stream fixtures.
 - [ ] B015 Capture authenticated private-stream fixtures.
