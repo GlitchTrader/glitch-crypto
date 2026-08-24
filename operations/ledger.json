@@ -2,7 +2,7 @@
   "schema_version": "architectonic.rail.v1",
   "metadata": {
     "project": "glitch-crypto",
-    "updated_utc": "2026-08-24T20:15:00Z",
+    "updated_utc": "2026-08-24T22:10:00Z",
     "source_map": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
     "status_authority": "operations/ledger.json"
   },
@@ -47,7 +47,9 @@
         ],
         "ticket": "https://github.com/GlitchTrader/glitch-crypto/issues/4",
         "spec": "operations/specs/GC-002/spec.md",
-        "phase": "binance-usdm-read-only-shadow",
+        "phase": "binance-usdm-supervised-streams",
+        "phase_a_status": "complete",
+        "phase_a_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/6",
         "acceptance": [
           "official capability contract recorded",
           "read-only endpoint authority is explicit and fail-closed",
@@ -61,9 +63,12 @@
         ],
         "evidence": [
           "local isolated phase-A gate: strict TypeScript build and 10/10 Binance shadow tests passing",
-          "official Binance JavaScript USDⓈ-M connector inspected at commit 092e4f289e9047114fb8ec66256510cc207e16bb"
+          "official Binance JavaScript USDⓈ-M connector inspected at commit 092e4f289e9047114fb8ec66256510cc207e16bb",
+          "remote phase-A commit: c967a59a67611cd09234f97e971225fe78879dde",
+          "remote phase-A CI: success in GitHub Actions run 32782743337",
+          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/6 over https://github.com/GlitchTrader/glitch-crypto/pull/3"
         ],
-        "notes": "Phase A is observation-only. Binance is selected as the first shadow benchmark, not yet as the production mutation venue. Branch: architect/gc-002-binance-shadow."
+        "notes": "Phase A is complete and CI-green. GC-002 remains active at supervised public/private transport; Binance is still only the first shadow benchmark, not an accepted production mutation venue."
       },
       {
         "id": "GC-003",
