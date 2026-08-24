@@ -15,6 +15,6 @@
     "cli": "node --enable-source-maps dist/src/cli.js"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "5.8.3"
   }
 }
