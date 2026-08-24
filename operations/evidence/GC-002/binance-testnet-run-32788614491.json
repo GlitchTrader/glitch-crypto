@@ -46,26 +46,26 @@
   "frozen_fixture": {
     "path": "tests/fixtures/binance-usdm/observed-testnet-public.jsonl",
     "manifest_path": "tests/fixtures/binance-usdm/observed-testnet-public.jsonl.manifest.json",
-    "evidence_sha256": "423a0c464bcf8e72ba21e1a470ae526763fdb0b03a064a92d45477fada8dbe86",
-    "record_count": 32,
-    "public_message_count": 25,
+    "evidence_sha256": "0b1053f5607bfc9354e4744f993f42637dada8902b5982f69319c5b279dd2ab7",
+    "record_count": 12,
+    "public_message_count": 5,
     "derivation": [
-      "Retain source records 1 through 30, covering lifecycle, snapshot, and the first 25 consecutive public depth messages.",
+      "Retain source records 1 through 10, covering lifecycle, snapshot, and the first 5 consecutive public depth messages.",
       "Retain source records 117 and 118 for the observed deterministic stop lifecycle.",
       "Retain the first 20 bid and first 20 ask levels from the source REST snapshot; all retained prices and quantities are unchanged.",
-      "Renumber retained evidence sequence values from 1 through 32; session ID, timestamps, and retained market-event payloads are unchanged."
+      "Renumber retained evidence sequence values from 1 through 12; session ID, timestamps, and retained market-event payloads are unchanged."
     ],
     "replay": {
       "order_book_status": "ready",
       "symbol": "BTCUSDT",
-      "update_id": 410623298335,
+      "update_id": 410623244109,
       "best_bid": [
-        "78706.20",
-        "0.1261"
+        "78688.20",
+        "0.0129"
       ],
       "best_ask": [
-        "78719.80",
-        "1271.9674"
+        "78718.20",
+        "0.0054"
       ],
       "gap_reason": null
     }
