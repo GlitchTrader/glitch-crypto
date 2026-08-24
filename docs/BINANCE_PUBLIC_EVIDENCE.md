@@ -14,7 +14,7 @@ The capture command:
 
 - starts only the read-only public depth lane;
 - records the supervisor start, stream transitions, diff-depth messages, REST snapshot, and supervisor stop;
-- runs for 5-300 seconds and then stops deterministically;
+- runs for 5-300 seconds and then terminates deterministically;
 - refuses to overwrite an existing evidence file;
 - writes a SHA-256-bound manifest beside the JSONL evidence;
 - exits nonzero unless the frozen session passes the public replay contract;
@@ -33,6 +33,15 @@ Verification requires one session, contiguous record sequence, nondecreasing tim
 
 ## GitHub evidence job
 
-`.github/workflows/binance-public-evidence.yml` provides a bounded evidence job and uploads the JSONL plus manifest as an artifact. The initial GC-002c branch push is intentionally enabled to obtain the first observed artifact. After the artifact is reviewed and frozen, the branch-specific push trigger must be removed; long-term capture is manual through `workflow_dispatch`.
+`.github/workflows/binance-public-evidence.yml` provides a bounded evidence job and uploads the JSONL plus manifest as an artifact. The initial GC-002c branch push is intentionally enabled to obtain observed artifacts. After an artifact is reviewed and frozen, the branch-specific push trigger must be removed; long-term capture is manual through `workflow_dispatch`.
 
-This job proves transport/replay behavior from the runner location only. It does not prove the user's authenticated account access, fee tier, jurisdiction eligibility, private stream recovery, fill quality, or mutation safety.
+Mainnet run `32787342723` proved deterministic capture termination but was rejected because the GitHub-hosted runner's REST snapshot request received HTTP 451 for a restricted location. That exact runner-access result is retained under `operations/evidence/GC-002/` and is not treated as market evidence.
+
+The temporary branch-triggered job now uses the exact Binance Futures Testnet endpoints:
+
+```text
+REST: https://testnet.binancefuture.com
+WS:   wss://stream.binancefuture.com
+```
+
+Testnet evidence can validate public transport, synchronization, bounded capture, and deterministic replay. It cannot establish production market quality, production access, fees, fill behavior, authenticated account access, private-stream recovery, mutation safety, or profitability.
