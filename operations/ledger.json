@@ -1,0 +1,95 @@
+{
+  "schema_version": "architectonic.rail.v1",
+  "metadata": {
+    "project": "glitch-crypto",
+    "updated_utc": "2026-08-24T19:35:00Z",
+    "source_map": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
+    "status_authority": "operations/ledger.json"
+  },
+  "rail": {
+    "active": "GC-001",
+    "items": [
+      {
+        "id": "GC-001",
+        "title": "Establish the protected daily-lock control plane",
+        "status": "active",
+        "priority": "P0",
+        "dependencies": [],
+        "ticket": "https://github.com/GlitchTrader/glitch-crypto/issues/2",
+        "spec": "operations/specs/GC-001/spec.md",
+        "acceptance": [
+          "strict TypeScript build and deterministic tests pass",
+          "0.5 percent target scales from the usable pot",
+          "operator and model tokens are separated",
+          "entry sizing is stop-defined",
+          "protected entry and partial re-arm are durable",
+          "UUID replay/conflict and restart durability are proven",
+          "paired Hermes profile contract exists"
+        ],
+        "evidence": [
+          "local: npm run check — strict TypeScript build and 9/9 deterministic tests passing",
+          "local HTTP/CLI smoke: $1,000 equity, 0.5% objective=$5.00, $450 notional protected entry, $4.95 planned loss, $8.54 net target outcome, $1,005 active protected-equity floor",
+          "paired profile: distribution verification and 9/9 Python tests passing",
+          "remote: architect/gc-001-foundation commit f38b8ca6f93163804c0879328e12297a5ebd994b",
+          "review: draft PR https://github.com/GlitchTrader/glitch-crypto/pull/3 paired with https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
+        ],
+        "notes": "Draft PR #3 is open and unmerged; GC-001 remains active until CI and review acceptance.",
+        "pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/3",
+        "paired_pull_request": "https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
+      },
+      {
+        "id": "GC-002",
+        "title": "Select and accept the first production venue adapter",
+        "status": "ready",
+        "priority": "P0",
+        "dependencies": [
+          "GC-001"
+        ],
+        "acceptance": [
+          "official capability contract recorded",
+          "public/private stream continuity proven",
+          "native protected entry and exact ownership proven",
+          "ambiguous transport and restart recovery proven",
+          "authenticated fee and precision discovery proven"
+        ],
+        "evidence": [],
+        "notes": "Decision among Binance USDⓈ-M, OKX, and Hyperliquid depends on actual account access and runtime evidence."
+      },
+      {
+        "id": "GC-003",
+        "title": "Build event replay and calibrated opportunity baselines",
+        "status": "blocked",
+        "priority": "P0",
+        "dependencies": [
+          "GC-002"
+        ],
+        "acceptance": [
+          "event-time replay includes costs, latency, nonfills, and partial fills",
+          "fill and target-before-stop models are calibrated",
+          "frozen holdout and shadow baselines exist"
+        ],
+        "evidence": [],
+        "notes": "No LLM profitability attribution before numerical and no-trade baselines exist."
+      },
+      {
+        "id": "GC-004",
+        "title": "Run shadow A/B and bounded real-money canary",
+        "status": "blocked",
+        "priority": "P0",
+        "dependencies": [
+          "GC-002",
+          "GC-003",
+          "GCHP-001"
+        ],
+        "acceptance": [
+          "hybrid policy is compared with numerical-only baseline",
+          "mutation smoke test uses bounded disposable capital",
+          "protected live outcomes reconcile fees and slippage",
+          "promotion remains reversible"
+        ],
+        "evidence": [],
+        "notes": "Tests and architecture do not imply this item is safe to begin."
+      }
+    ]
+  }
+}
