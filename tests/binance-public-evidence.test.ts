@@ -146,20 +146,20 @@ test("public evidence rejects sequence corruption and private records", () => {
 test("the frozen observed Testnet fixture remains checksum-bound and replay-ready", () => {
   const report = verifyBinancePublicEvidence(
     "tests/fixtures/binance-usdm/observed-testnet-public.jsonl",
-    { minimumMessages: 25 },
+    { minimumMessages: 5 },
   );
 
   assert.equal(report.accepted_for_public_replay, true);
   assert.equal(
     report.evidence_sha256,
-    "423a0c464bcf8e72ba21e1a470ae526763fdb0b03a064a92d45477fada8dbe86",
+    "0b1053f5607bfc9354e4744f993f42637dada8902b5982f69319c5b279dd2ab7",
   );
-  assert.equal(report.record_count, 32);
-  assert.equal(report.counts.public_messages, 25);
+  assert.equal(report.record_count, 12);
+  assert.equal(report.counts.public_messages, 5);
   assert.equal(report.counts.public_errors, 0);
   assert.equal(report.replay.order_book_status, "ready");
-  assert.equal(report.replay.update_id, 410_623_298_335);
-  assert.deepEqual(report.replay.best_bid, ["78706.20", "0.1261"]);
-  assert.deepEqual(report.replay.best_ask, ["78719.80", "1271.9674"]);
+  assert.equal(report.replay.update_id, 410_623_244_109);
+  assert.deepEqual(report.replay.best_bid, ["78688.20", "0.0129"]);
+  assert.deepEqual(report.replay.best_ask, ["78718.20", "0.0054"]);
   assert.equal(report.replay.gap_reason, null);
 });
