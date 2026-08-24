@@ -11,14 +11,6 @@ on:
         description: Binance USD-M perpetual symbol
         required: false
         default: BTCUSDT
-  push:
-    branches:
-      - architect/gc-002-public-evidence
-    paths:
-      - .github/workflows/binance-public-evidence.yml
-      - src/venue/binance-usdm/evidence-cli.ts
-      - src/venue/binance-usdm/public-evidence.ts
-      - src/venue/binance-usdm/order-book.ts
 
 permissions:
   contents: read
