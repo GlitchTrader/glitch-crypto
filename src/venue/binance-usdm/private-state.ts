@@ -52,11 +52,16 @@ export interface BinancePrivateStateView {
 
 export type BinancePrivateApplyResult = "applied" | "duplicate" | "unsupported";
 
+const MAXIMUM_DEDUPLICATION_EVENTS = 100_000;
+
 export class BinanceUsdmPrivateState {
   private readonly balances = new Map<string, BinancePrivateBalance>();
   private readonly positions = new Map<string, BinancePrivatePosition>();
   private readonly orders = new Map<number, BinancePrivateOrder>();
   private readonly eventIds = new Set<string>();
+  private readonly eventOrder: string[] = [];
+  private eventOrderOffset = 0;
+  private appliedEventCount = 0;
   private streamExpired = false;
   private lastEventTime: number | null = null;
   private lastTransactionTime: number | null = null;
@@ -84,7 +89,8 @@ export class BinanceUsdmPrivateState {
     if (!applied) {
       return "unsupported";
     }
-    this.eventIds.add(eventId);
+    this.rememberEvent(eventId);
+    this.appliedEventCount += 1;
     this.lastEventTime = optionalSafeInteger(event.E, "event time") ?? this.lastEventTime;
     this.lastTransactionTime = optionalSafeInteger(event.T, "transaction time") ?? this.lastTransactionTime;
     return "applied";
@@ -159,8 +165,23 @@ export class BinanceUsdmPrivateState {
       positions: [...this.positions.values()].sort((a, b) =>
         positionKey(a.symbol, a.position_side).localeCompare(positionKey(b.symbol, b.position_side))),
       orders: [...this.orders.values()].sort((a, b) => a.order_id - b.order_id),
-      applied_event_count: this.eventIds.size,
+      applied_event_count: this.appliedEventCount,
     };
+  }
+
+  private rememberEvent(eventId: string): void {
+    this.eventIds.add(eventId);
+    this.eventOrder.push(eventId);
+    while (this.eventIds.size > MAXIMUM_DEDUPLICATION_EVENTS) {
+      const oldest = this.eventOrder[this.eventOrderOffset++];
+      if (oldest !== undefined) {
+        this.eventIds.delete(oldest);
+      }
+    }
+    if (this.eventOrderOffset >= 10_000 && this.eventOrderOffset * 2 >= this.eventOrder.length) {
+      this.eventOrder.splice(0, this.eventOrderOffset);
+      this.eventOrderOffset = 0;
+    }
   }
 
   private applyAccountUpdate(event: Record<string, unknown>): void {

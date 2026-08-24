@@ -47,7 +47,7 @@ export class BinanceUsdmOrderBook {
   private gapReason: string | null = null;
 
   ingest(input: BinanceDepthDelta): BinanceDepthApplyResult {
-    const delta = validateDelta(input);
+    const delta = parseBinanceDepthDelta(input);
     if (this.status === "gapped") {
       return "gapped";
     }
@@ -60,7 +60,7 @@ export class BinanceUsdmOrderBook {
   }
 
   loadSnapshot(input: BinanceDepthSnapshot): BinanceOrderBookView {
-    const snapshot = validateSnapshot(input);
+    const snapshot = parseBinanceDepthSnapshot(input);
     this.bids.clear();
     this.asks.clear();
     applyLevels(this.bids, snapshot.bids);
@@ -175,36 +175,38 @@ export class BinanceUsdmOrderBook {
   }
 }
 
-function validateSnapshot(input: BinanceDepthSnapshot): BinanceDepthSnapshot {
+export function parseBinanceDepthSnapshot(input: unknown): BinanceDepthSnapshot {
+  const value = objectValue(input, "depth snapshot");
   return {
-    lastUpdateId: positiveSafeInteger(input.lastUpdateId, "snapshot lastUpdateId"),
-    bids: validateLevels(input.bids, "snapshot bids"),
-    asks: validateLevels(input.asks, "snapshot asks"),
+    lastUpdateId: positiveSafeInteger(value.lastUpdateId, "snapshot lastUpdateId"),
+    bids: validateLevels(value.bids, "snapshot bids"),
+    asks: validateLevels(value.asks, "snapshot asks"),
   };
 }
 
-function validateDelta(input: BinanceDepthDelta): BinanceDepthDelta {
-  const first = positiveSafeInteger(input.U, "delta first update ID");
-  const final = positiveSafeInteger(input.u, "delta final update ID");
+export function parseBinanceDepthDelta(input: unknown): BinanceDepthDelta {
+  const value = objectValue(input, "depth delta");
+  const first = positiveSafeInteger(value.U, "delta first update ID");
+  const final = positiveSafeInteger(value.u, "delta final update ID");
   if (first > final) {
     throw new Error("delta first update ID cannot exceed final update ID");
   }
-  const previous = input.pu === undefined
+  const previous = value.pu === undefined
     ? undefined
-    : nonNegativeSafeInteger(input.pu, "delta previous update ID");
+    : nonNegativeSafeInteger(value.pu, "delta previous update ID");
   return {
     U: first,
     u: final,
     ...(previous === undefined ? {} : { pu: previous }),
-    b: validateLevels(input.b, "delta bids"),
-    a: validateLevels(input.a, "delta asks"),
-    ...(input.E === undefined ? {} : { E: nonNegativeSafeInteger(input.E, "event time") }),
-    ...(input.T === undefined ? {} : { T: nonNegativeSafeInteger(input.T, "transaction time") }),
-    ...(input.s === undefined ? {} : { s: nonEmptyString(input.s, "symbol") }),
+    b: validateLevels(value.b, "delta bids"),
+    a: validateLevels(value.a, "delta asks"),
+    ...(value.E === undefined ? {} : { E: nonNegativeSafeInteger(value.E, "event time") }),
+    ...(value.T === undefined ? {} : { T: nonNegativeSafeInteger(value.T, "transaction time") }),
+    ...(value.s === undefined ? {} : { s: nonEmptyString(value.s, "symbol") }),
   };
 }
 
-function validateLevels(levels: BinancePriceLevel[], name: string): BinancePriceLevel[] {
+function validateLevels(levels: unknown, name: string): BinancePriceLevel[] {
   if (!Array.isArray(levels)) {
     throw new Error(`${name} must be an array`);
   }
@@ -240,6 +242,13 @@ function sortedLevels(
     })
     .slice(0, depth)
     .map(([price, quantity]) => [price, quantity] as const);
+}
+
+function objectValue(value: unknown, name: string): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${name} must be an object`);
+  }
+  return value as Record<string, unknown>;
 }
 
 function positiveSafeInteger(value: unknown, name: string): number {

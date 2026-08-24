@@ -2,7 +2,7 @@
   "schema_version": "architectonic.rail.v1",
   "metadata": {
     "project": "glitch-crypto",
-    "updated_utc": "2026-08-24T22:10:00Z",
+    "updated_utc": "2026-08-24T22:30:00Z",
     "source_map": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
     "status_authority": "operations/ledger.json"
   },
@@ -47,9 +47,12 @@
         ],
         "ticket": "https://github.com/GlitchTrader/glitch-crypto/issues/4",
         "spec": "operations/specs/GC-002/spec.md",
+        "active_spec": "operations/specs/GC-002/stream-spec.md",
         "phase": "binance-usdm-supervised-streams",
         "phase_a_status": "complete",
         "phase_a_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/6",
+        "phase_b_status": "implementation",
+        "phase_b_branch": "architect/gc-002-binance-streams",
         "acceptance": [
           "official capability contract recorded",
           "read-only endpoint authority is explicit and fail-closed",
@@ -66,9 +69,10 @@
           "official Binance JavaScript USDⓈ-M connector inspected at commit 092e4f289e9047114fb8ec66256510cc207e16bb",
           "remote phase-A commit: c967a59a67611cd09234f97e971225fe78879dde",
           "remote phase-A CI: success in GitHub Actions run 32782743337",
-          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/6 over https://github.com/GlitchTrader/glitch-crypto/pull/3"
+          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/6 over https://github.com/GlitchTrader/glitch-crypto/pull/3",
+          "local isolated phase-B gate: strict TypeScript build and 18/18 supervised-stream tests passing"
         ],
-        "notes": "Phase A is complete and CI-green. GC-002 remains active at supervised public/private transport; Binance is still only the first shadow benchmark, not an accepted production mutation venue."
+        "notes": "Phase A is complete and CI-green. Phase B implements supervised public/private transport, bounded evidence, and deterministic replay without trading authority. Observed fixtures and authenticated runtime evidence remain required before phase-B acceptance."
       },
       {
         "id": "GC-003",
