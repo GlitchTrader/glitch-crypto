@@ -2,17 +2,17 @@
   "schema_version": "architectonic.rail.v1",
   "metadata": {
     "project": "glitch-crypto",
-    "updated_utc": "2026-08-24T19:35:00Z",
+    "updated_utc": "2026-08-24T22:10:00Z",
     "source_map": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
     "status_authority": "operations/ledger.json"
   },
   "rail": {
-    "active": "GC-001",
+    "active": "GC-002",
     "items": [
       {
         "id": "GC-001",
         "title": "Establish the protected daily-lock control plane",
-        "status": "active",
+        "status": "complete",
         "priority": "P0",
         "dependencies": [],
         "ticket": "https://github.com/GlitchTrader/glitch-crypto/issues/2",
@@ -29,31 +29,46 @@
         "evidence": [
           "local: npm run check — strict TypeScript build and 9/9 deterministic tests passing",
           "local HTTP/CLI smoke: $1,000 equity, 0.5% objective=$5.00, $450 notional protected entry, $4.95 planned loss, $8.54 net target outcome, $1,005 active protected-equity floor",
-          "paired profile: distribution verification and 9/9 Python tests passing",
-          "remote: architect/gc-001-foundation commit f38b8ca6f93163804c0879328e12297a5ebd994b",
+          "remote gateway CI: success at commit 502689ce9ce5e4525424c3f560cb88f1ed8f85d6",
+          "remote profile CI: success at commit 79278f92edc2d4e860b38c7613edfbf8920c266d",
           "review: draft PR https://github.com/GlitchTrader/glitch-crypto/pull/3 paired with https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
         ],
-        "notes": "Draft PR #3 is open and unmerged; GC-001 remains active until CI and review acceptance.",
+        "notes": "Implementation is complete, CI-green, open, and deliberately unmerged.",
         "pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/3",
         "paired_pull_request": "https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
       },
       {
         "id": "GC-002",
         "title": "Select and accept the first production venue adapter",
-        "status": "ready",
+        "status": "active",
         "priority": "P0",
         "dependencies": [
           "GC-001"
         ],
+        "ticket": "https://github.com/GlitchTrader/glitch-crypto/issues/4",
+        "spec": "operations/specs/GC-002/spec.md",
+        "phase": "binance-usdm-supervised-streams",
+        "phase_a_status": "complete",
+        "phase_a_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/6",
         "acceptance": [
           "official capability contract recorded",
-          "public/private stream continuity proven",
-          "native protected entry and exact ownership proven",
-          "ambiguous transport and restart recovery proven",
-          "authenticated fee and precision discovery proven"
+          "read-only endpoint authority is explicit and fail-closed",
+          "credentials and signatures cannot enter evidence",
+          "authenticated fee and precision discovery is implemented",
+          "public order-book continuity is replay-proven",
+          "private account/order state and restart reconciliation are replay-proven",
+          "continuous public/private transport evidence is captured",
+          "native protected entry and exact ownership are accepted",
+          "ambiguous transport and restart recovery are accepted"
         ],
-        "evidence": [],
-        "notes": "Decision among Binance USDⓈ-M, OKX, and Hyperliquid depends on actual account access and runtime evidence."
+        "evidence": [
+          "local isolated phase-A gate: strict TypeScript build and 10/10 Binance shadow tests passing",
+          "official Binance JavaScript USDⓈ-M connector inspected at commit 092e4f289e9047114fb8ec66256510cc207e16bb",
+          "remote phase-A commit: c967a59a67611cd09234f97e971225fe78879dde",
+          "remote phase-A CI: success in GitHub Actions run 32782743337",
+          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/6 over https://github.com/GlitchTrader/glitch-crypto/pull/3"
+        ],
+        "notes": "Phase A is complete and CI-green. GC-002 remains active at supervised public/private transport; Binance is still only the first shadow benchmark, not an accepted production mutation venue."
       },
       {
         "id": "GC-003",

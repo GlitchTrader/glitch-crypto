@@ -10,6 +10,10 @@ declare module "node:crypto" {
     update(value: string): { digest(encoding: "hex"): string };
     digest(encoding: "hex"): string;
   };
+  export function createHmac(algorithm: string, key: string): {
+    update(value: string): { digest(encoding: "hex"): string };
+    digest(encoding: "hex"): string;
+  };
   export function randomUUID(): string;
 }
 
@@ -63,6 +67,7 @@ declare module "node:assert/strict" {
     ok(value: any, message?: string): void;
     match(value: string, pattern: RegExp, message?: string): void;
     rejects(fn: () => Promise<any>, expected?: any): Promise<void>;
+    throws(fn: () => any, expected?: any): void;
   };
   export default assert;
 }
