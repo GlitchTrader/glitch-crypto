@@ -10,8 +10,8 @@
 - [x] T008 Implement strict GET-only public/signed shadow capture.
 - [x] T009 Implement the public/account/rules CLI.
 - [x] T010 Add deterministic phase-A tests.
-- [ ] T011 Run the complete repository gate and fix integration defects.
-- [ ] T012 Publish the stacked draft PR and attach CI evidence.
+- [x] T011 Run the complete repository gate and fix integration defects.
+- [x] T012 Publish the stacked draft PR and attach CI evidence.
 - [ ] T013 Capture authenticated read-only account evidence.
 - [ ] T014 Add supervised public/private WebSocket transport and observed replay fixtures.
 - [ ] T015 Compare OKX and Hyperliquid against the same capability matrix.
