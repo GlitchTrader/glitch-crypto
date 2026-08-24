@@ -2,7 +2,7 @@
   "schema_version": "architectonic.rail.v1",
   "metadata": {
     "project": "glitch-crypto",
-    "updated_utc": "2026-08-24T20:30:00Z",
+    "updated_utc": "2026-08-24T19:35:00Z",
     "source_map": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
     "status_authority": "operations/ledger.json"
   },
@@ -29,9 +29,13 @@
         "evidence": [
           "local: npm run check — strict TypeScript build and 9/9 deterministic tests passing",
           "local HTTP/CLI smoke: $1,000 equity, 0.5% objective=$5.00, $450 notional protected entry, $4.95 planned loss, $8.54 net target outcome, $1,005 active protected-equity floor",
-          "paired profile: distribution verification and 9/9 Python tests passing"
+          "paired profile: distribution verification and 9/9 Python tests passing",
+          "remote: architect/gc-001-foundation commit f38b8ca6f93163804c0879328e12297a5ebd994b",
+          "review: draft PR https://github.com/GlitchTrader/glitch-crypto/pull/3 paired with https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
         ],
-        "notes": "Substantive changes remain on architect/gc-001-foundation and an unmerged PR."
+        "notes": "Draft PR #3 is open and unmerged; GC-001 remains active until CI and review acceptance.",
+        "pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/3",
+        "paired_pull_request": "https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
       },
       {
         "id": "GC-002",
