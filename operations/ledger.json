@@ -2,7 +2,7 @@
   "schema_version": "architectonic.rail.v1",
   "metadata": {
     "project": "glitch-crypto",
-    "updated_utc": "2026-08-24T22:40:00Z",
+    "updated_utc": "2026-08-24T23:48:30Z",
     "source_map": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
     "status_authority": "operations/ledger.json"
   },
@@ -31,9 +31,10 @@
           "local HTTP/CLI smoke: $1,000 equity, 0.5% objective=$5.00, $450 notional protected entry, $4.95 planned loss, $8.54 net target outcome, $1,005 active protected-equity floor",
           "remote gateway CI: success at commit 502689ce9ce5e4525424c3f560cb88f1ed8f85d6",
           "remote profile CI: success at commit 79278f92edc2d4e860b38c7613edfbf8920c266d",
-          "review: draft PR https://github.com/GlitchTrader/glitch-crypto/pull/3 paired with https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
+          "merged: gateway PR https://github.com/GlitchTrader/glitch-crypto/pull/3 at 70567a35682a945110ded45fd8ba6ad237bc6c45 with successful main CI run 32790837194",
+          "merged: paired profile PR https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1 at 9d465211369cee1eb8d8cbfa4023948ab6bba63e with successful main CI run 32790836304"
         ],
-        "notes": "Implementation is complete, CI-green, open, and deliberately unmerged.",
+        "notes": "Implementation and the paired profile are merged to main and CI-green. This does not authorize real venue mutation or claim profitability or live readiness.",
         "pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/3",
         "paired_pull_request": "https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
       },
@@ -51,7 +52,7 @@
         "phase": "binance-usdm-supervised-streams",
         "phase_a_status": "complete",
         "phase_a_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/6",
-        "phase_b_status": "code_complete_ci_green_runtime_evidence_pending",
+        "phase_b_status": "code_complete_ci_green_merged_runtime_evidence_pending",
         "phase_b_branch": "architect/gc-002-binance-streams",
         "phase_b_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/7",
         "acceptance": [
@@ -70,13 +71,13 @@
           "official Binance JavaScript USDⓈ-M connector inspected at commit 092e4f289e9047114fb8ec66256510cc207e16bb",
           "remote phase-A commit: c967a59a67611cd09234f97e971225fe78879dde",
           "remote phase-A CI: success in GitHub Actions run 32782846560",
-          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/6 over https://github.com/GlitchTrader/glitch-crypto/pull/3",
+          "merged: phase-A PR https://github.com/GlitchTrader/glitch-crypto/pull/6 at 0548bf0c926b87133c8e0d624ca9c34cd65b3e18 with successful main CI run 32790893344",
           "local isolated phase-B gate: strict TypeScript build and 18/18 supervised-stream tests passing",
           "remote phase-B implementation commit: 567c5084535d7d21e89d8242bf5e117477ec9f10",
           "remote full stacked phase-B CI: strict TypeScript build and 27/27 tests passing in GitHub Actions run 32785239711",
-          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/7 over https://github.com/GlitchTrader/glitch-crypto/pull/6"
+          "merged: phase-B PR https://github.com/GlitchTrader/glitch-crypto/pull/7 at 9523969756d451ddc371a5d542498dadafd325ee with successful main CI run 32790939816"
         ],
-        "notes": "Phase A is complete. Phase B code is complete and CI-green, but remains unaccepted for production use until observed public fixtures and authenticated private fixtures are captured, replayed, and reviewed. Binance remains a shadow benchmark, not an accepted mutation venue."
+        "notes": "Phases A and B are merged and CI-green, but remain unaccepted for production use until observed public fixtures and authenticated private fixtures are captured, replayed, and reviewed. Binance remains a shadow benchmark, not an accepted mutation venue."
       },
       {
         "id": "GC-003",
