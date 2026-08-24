@@ -9,4 +9,4 @@
 - [x] T007 Implement authenticated loopback API and CLI controls/read surfaces.
 - [x] T008 Add deterministic tests for math, auth, protection, partials, floor, idempotency, and restart.
 - [x] T009 Pair the Hermes profile constitution, commands, strict intent skill, and tests.
-- [ ] T010 Run both repository checks, capture CLI evidence, update rail, and open coordinated draft PRs.
+- [x] T010 Run both repository checks, capture CLI evidence, update rail, and open coordinated draft PRs.
