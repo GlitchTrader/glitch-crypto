@@ -10,5 +10,5 @@
 - [x] L008 Implement GET-only restart reconciliation.
 - [x] L009 Prove ordering, ambiguity, partial fill, cleanup, and secret exclusion.
 - [x] L010 Update capability truth, ontology, and ADR.
-- [ ] L011 Run the complete repository gate.
-- [ ] L012 Update Rail and GitHub evidence, then push direct to main.
+- [x] L011 Run the complete repository gate.
+- [x] L012 Update Rail and GitHub evidence, then push direct to main.
