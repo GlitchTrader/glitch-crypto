@@ -68,7 +68,11 @@ Immutable sanitized point-in-time evidence supplied to cognition. It is not an o
 
 Immutable provider payload retained before derived features or labels. A strict
 inspection may reject its identity or required fields but does not discard
-unknown provider extensions from evidence.
+unknown provider extensions from evidence. Replay-grade evidence also binds the
+exact raw frame and hash to venue, instrument, channel, socket connection,
+exchange time, local wall-clock receive time, monotonic receive time, provider
+sequence identity, and the versioned inspection contract. Missing historical
+provenance remains explicit and is never reconstructed by inference.
 
 ### TradingIntent
 

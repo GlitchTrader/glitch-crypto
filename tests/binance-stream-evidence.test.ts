@@ -75,3 +75,35 @@ test("JSONL evidence is bounded, rotated, and credential-free", () => {
     rmSync(backup, { force: true });
   }
 });
+
+test("exact raw market frames reject configured credentials instead of rewriting them", () => {
+  const sink = new InMemoryBinanceStreamEvidenceSink({
+    forbiddenValues: ["credential-value"],
+    now: () => 1_700_000_000_000,
+  });
+  assert.throws(() => sink.record(
+    "public-market",
+    "message",
+    null,
+    {
+      venue: "BINANCE_USDM",
+      instrument: "BTCUSDT",
+      channel: "public-market",
+      connection_id: "market-connection-0001",
+      local_receive_timestamp_ms: 1_700_000_000_000,
+      monotonic_receive_ns: "1000000",
+      exchange_timestamp_ms: null,
+      provider_sequence: {
+        event_type: null,
+        event_time_ms: null,
+        aggregate_trade_id: null,
+        first_trade_id: null,
+        last_trade_id: null,
+        trade_time_ms: null,
+      },
+      normalization_version: "binance-usdm-market-inspection.v1",
+      raw_frame: '{"token":"credential-value"}',
+    },
+  ), /configured credential/);
+  assert.equal(sink.records.length, 0);
+});

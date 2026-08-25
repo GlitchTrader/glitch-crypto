@@ -1,5 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { inspectBinanceMarketEvent } from "./market-events.js";
-import type { BinanceStreamEvidenceSink } from "./stream-evidence.js";
+import type {
+  BinanceRawMarketFrameInput,
+  BinanceRawMarketProviderSequence,
+  BinanceStreamEvidenceSink,
+} from "./stream-evidence.js";
 import {
   SERVICE_RESTART_CLOSE,
   binanceMarketStreamUrl,
@@ -21,6 +26,9 @@ export interface BinanceMarketStreamRecorderOptions {
   socketFactory: BinanceWebSocketFactory;
   scheduler: BinanceStreamScheduler;
   evidence: BinanceStreamEvidenceSink;
+  wallClock?: () => number;
+  monotonicClock?: () => bigint;
+  connectionIdFactory?: () => string;
 }
 
 export interface BinanceMarketStreamRecorderStatus {
@@ -96,6 +104,8 @@ export class BinanceMarketStreamRecorder {
     }
     this.clearRestartTimer();
     const epoch = ++this.epoch;
+    const connectionId =
+      this.options.connectionIdFactory?.() ?? randomUUID();
     this.state = "connecting";
     const symbol = this.options.symbol.toLowerCase();
     const streams = [`${symbol}@aggTrade`, `${symbol}@markPrice@1s`];
@@ -107,6 +117,7 @@ export class BinanceMarketStreamRecorder {
       state: "connecting",
       epoch,
       streams,
+      connection_id: connectionId,
       mutation_authority: false,
     });
     socket.addEventListener("open", () => {
@@ -114,10 +125,14 @@ export class BinanceMarketStreamRecorder {
         return;
       }
       this.state = "running";
-      this.record("transition", { state: "running", epoch });
+      this.record("transition", {
+        state: "running",
+        epoch,
+        connection_id: connectionId,
+      });
     });
     socket.addEventListener("message", (event) => {
-      void this.onMessage(epoch, event.data);
+      void this.onMessage(epoch, connectionId, event.data);
     });
     socket.addEventListener("error", (event) => {
       if (epoch !== this.epoch) {
@@ -145,15 +160,42 @@ export class BinanceMarketStreamRecorder {
     });
   }
 
-  private async onMessage(epoch: number, data: unknown): Promise<void> {
+  private async onMessage(
+    epoch: number,
+    connectionId: string,
+    data: unknown,
+  ): Promise<void> {
     if (epoch !== this.epoch || !this.desiredRunning) {
       return;
     }
+    const localReceiveTimestampMs =
+      this.options.wallClock?.() ?? Date.now();
+    const monotonicReceiveNs = (
+      this.options.monotonicClock?.() ??
+        BigInt(Math.max(1, Math.trunc(performance.now() * 1_000_000)))
+    ).toString();
     try {
-      const payload = unwrapBinanceStreamPayload(
-        await decodeBinanceMessageData(data),
+      const rawFrame = await decodeBinanceMessageData(data);
+      let payload: unknown;
+      try {
+        payload = unwrapBinanceStreamPayload(rawFrame);
+      } catch (error) {
+        this.recordRawMessage(
+          connectionId,
+          localReceiveTimestampMs,
+          monotonicReceiveNs,
+          rawFrame,
+          null,
+        );
+        throw error;
+      }
+      this.recordRawMessage(
+        connectionId,
+        localReceiveTimestampMs,
+        monotonicReceiveNs,
+        rawFrame,
+        payload,
       );
-      this.record("message", payload);
       const summary = inspectBinanceMarketEvent(payload, this.options.symbol);
       if (summary.event_type === "aggTrade") {
         if (
@@ -242,4 +284,57 @@ export class BinanceMarketStreamRecorder {
       message: error instanceof Error ? error.message : String(error),
     });
   }
+
+  private recordRawMessage(
+    connectionId: string,
+    localReceiveTimestampMs: number,
+    monotonicReceiveNs: string,
+    rawFrame: string,
+    payload: unknown,
+  ): void {
+    const providerSequence = describeProviderSequence(payload);
+    const provenance: BinanceRawMarketFrameInput = {
+      venue: "BINANCE_USDM",
+      instrument: this.options.symbol,
+      channel: "public-market",
+      connection_id: connectionId,
+      local_receive_timestamp_ms: localReceiveTimestampMs,
+      monotonic_receive_ns: monotonicReceiveNs,
+      exchange_timestamp_ms: providerSequence.event_time_ms,
+      provider_sequence: providerSequence,
+      normalization_version: "binance-usdm-market-inspection.v1",
+      raw_frame: rawFrame,
+    };
+    this.options.evidence.record(
+      "public-market",
+      "message",
+      payload,
+      provenance,
+    );
+  }
+}
+
+function describeProviderSequence(
+  payload: unknown,
+): BinanceRawMarketProviderSequence {
+  const record =
+    payload !== null && typeof payload === "object" && !Array.isArray(payload)
+      ? payload as Record<string, unknown>
+      : {};
+  const eventType = typeof record.e === "string" ? record.e : null;
+  const aggregateTrade = eventType === "aggTrade";
+  return {
+    event_type: eventType,
+    event_time_ms: safeInteger(record.E),
+    aggregate_trade_id: aggregateTrade ? safeInteger(record.a) : null,
+    first_trade_id: aggregateTrade ? safeInteger(record.f) : null,
+    last_trade_id: aggregateTrade ? safeInteger(record.l) : null,
+    trade_time_ms: aggregateTrade ? safeInteger(record.T) : null,
+  };
+}
+
+function safeInteger(value: unknown): number | null {
+  return Number.isSafeInteger(value) && (value as number) >= 0
+    ? value as number
+    : null;
 }

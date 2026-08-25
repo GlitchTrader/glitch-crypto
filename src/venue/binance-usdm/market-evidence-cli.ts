@@ -96,11 +96,11 @@ if (command === "capture") {
       2,
     ),
   );
-  process.exitCode = report.accepted_for_raw_replay ? 0 : 1;
+  process.exitCode = report.accepted_for_event_replay ? 0 : 1;
 } else if (command === "verify") {
   const report = verifyBinanceMarketEvidence(evidencePath, verification);
   console.log(JSON.stringify(report, null, 2));
-  if (!report.accepted_for_raw_replay) {
+  if (!report.accepted_for_event_replay) {
     process.exitCode = 1;
   }
 } else {

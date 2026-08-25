@@ -37,6 +37,12 @@ session, monotonic recorder timestamps, complete connecting/running/stopped
 lifecycle evidence, configured minimum counts for both event families, no
 malformed events, no error records, and no reconnect/backoff boundary.
 
+### FR-E006 Replay-grade provenance
+
+New captures MUST satisfy the Phase-H exact raw-frame, connection, dual-clock,
+provider-identity, integrity, and explicit legacy requirements in
+`event-provenance-spec.md` before current CLI success.
+
 ## Safety invariants
 
 - `mutation_authority` is always `false`.
@@ -56,6 +62,8 @@ malformed events, no error records, and no reconnect/backoff boundary.
    eligibility; errors or incomplete lifecycle evidence fail it.
 5. A bounded external capture proves both event families on the selected route.
 6. The full repository gate passes.
+7. New captures pass the version-2 replay-grade verifier; the retained
+   version-1 fixture remains readable without being relabeled replay-grade.
 
 ## Non-goals
 

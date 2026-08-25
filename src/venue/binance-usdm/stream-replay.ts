@@ -30,7 +30,10 @@ export function replayBinanceStreamEvidence(
   let privateBuffer: unknown[] = [];
 
   for (const record of records) {
-    if (record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v1") {
+    if (
+      record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v1" &&
+      record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v2"
+    ) {
       throw new Error("unsupported Binance stream evidence schema");
     }
     if (record.channel === "public-depth" && record.kind === "transition") {
@@ -119,7 +122,10 @@ export function readBinanceStreamEvidenceJsonl(path: string): BinanceStreamEvide
 
 function parseRecord(value: unknown, line: number): BinanceStreamEvidenceRecord {
   const record = objectValue(value, `evidence line ${line}`);
-  if (record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v1") {
+  if (
+    record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v1" &&
+    record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v2"
+  ) {
     throw new Error(`unsupported evidence schema at line ${line}`);
   }
   if (typeof record.session_id !== "string" || record.session_id.length < 8) {
@@ -137,7 +143,73 @@ function parseRecord(value: unknown, line: number): BinanceStreamEvidenceRecord 
   if (!new Set(["message", "snapshot", "reconciliation", "transition", "keepalive", "error"]).has(String(record.kind))) {
     throw new Error(`invalid evidence kind at line ${line}`);
   }
+  if (record.schema_version === "glitch.crypto.binance-usdm-stream-evidence.v2") {
+    validateRawMarketRecord(record, line);
+  }
   return record as unknown as BinanceStreamEvidenceRecord;
+}
+
+function validateRawMarketRecord(
+  record: Record<string, unknown>,
+  line: number,
+): void {
+  if (record.channel !== "public-market" || record.kind !== "message") {
+    throw new Error(`invalid version-2 evidence authority at line ${line}`);
+  }
+  const provenance = objectValue(
+    record.provenance,
+    `version-2 provenance at line ${line}`,
+  );
+  if (
+    provenance.venue !== "BINANCE_USDM" ||
+    provenance.channel !== "public-market" ||
+    typeof provenance.instrument !== "string" ||
+    !/^[A-Z0-9]{5,24}$/.test(provenance.instrument) ||
+    typeof provenance.connection_id !== "string" ||
+    !/^[A-Za-z0-9:_-]{8,128}$/.test(provenance.connection_id) ||
+    !Number.isSafeInteger(provenance.local_receive_timestamp_ms) ||
+    (provenance.local_receive_timestamp_ms as number) <= 0 ||
+    typeof provenance.monotonic_receive_ns !== "string" ||
+    !/^[1-9]\d*$/.test(provenance.monotonic_receive_ns) ||
+    provenance.normalization_version !== "binance-usdm-market-inspection.v1" ||
+    typeof provenance.raw_frame !== "string" ||
+    provenance.raw_frame.length === 0 ||
+    !/^[a-f0-9]{64}$/.test(String(provenance.raw_frame_sha256))
+  ) {
+    throw new Error(`invalid version-2 provenance at line ${line}`);
+  }
+  if (
+    provenance.exchange_timestamp_ms !== null &&
+    (!Number.isSafeInteger(provenance.exchange_timestamp_ms) ||
+      (provenance.exchange_timestamp_ms as number) <= 0)
+  ) {
+    throw new Error(`invalid version-2 exchange timestamp at line ${line}`);
+  }
+  const providerSequence = objectValue(
+    provenance.provider_sequence,
+    `version-2 provider sequence at line ${line}`,
+  );
+  for (const key of [
+    "event_time_ms",
+    "aggregate_trade_id",
+    "first_trade_id",
+    "last_trade_id",
+    "trade_time_ms",
+  ]) {
+    const value = providerSequence[key];
+    if (
+      value !== null &&
+      (!Number.isSafeInteger(value) || (value as number) < 0)
+    ) {
+      throw new Error(`invalid version-2 provider sequence at line ${line}`);
+    }
+  }
+  if (
+    providerSequence.event_type !== null &&
+    typeof providerSequence.event_type !== "string"
+  ) {
+    throw new Error(`invalid version-2 provider event type at line ${line}`);
+  }
 }
 
 function objectValue(value: unknown, name: string): Record<string, unknown> {
