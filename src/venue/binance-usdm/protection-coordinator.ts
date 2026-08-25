@@ -597,7 +597,7 @@ export class BinanceUsdmProtectionCoordinator {
   }
 }
 
-function proveOrdinaryFill(
+export function proveOrdinaryFill(
   payload: unknown,
   symbol: string,
   side: string,
@@ -635,7 +635,7 @@ function proveOrdinaryFill(
   };
 }
 
-function proveAlgoOrder(
+export function proveAlgoOrder(
   lookup: BinanceUsdmLookupResult,
   symbol: string,
   side: string,
@@ -683,7 +683,7 @@ function booleanValue(value: unknown): boolean | null {
   return null;
 }
 
-function proveAlgoCancellation(
+export function proveAlgoCancellation(
   payload: unknown,
   clientAlgoId: string,
 ): boolean {
@@ -692,7 +692,7 @@ function proveAlgoCancellation(
     String(record.code) === "200";
 }
 
-function cleanupEvidence(
+export function cleanupEvidence(
   clientAlgoId: string,
   disposition: BinanceUsdmAlgoCleanupDisposition,
   venueStatus: string | null,
@@ -704,7 +704,7 @@ function cleanupEvidence(
   };
 }
 
-function cleanupComplete(evidence: BinanceUsdmAlgoCleanupEvidence): boolean {
+export function cleanupComplete(evidence: BinanceUsdmAlgoCleanupEvidence): boolean {
   return evidence.disposition === "canceled" || evidence.disposition === "absent";
 }
 

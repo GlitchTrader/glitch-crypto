@@ -27,7 +27,7 @@ export interface CompileBinanceUsdmExecutionContextInput {
 }
 
 export interface BinanceUsdmExecutionContext {
-  readonly schema_version: "glitch.crypto.binance-usdm-execution-context.v1";
+  readonly schema_version: "glitch.crypto.binance-usdm-execution-context.v2";
   readonly venue: "binance-usdm";
   readonly environment: "testnet";
   readonly symbol: string;
@@ -67,11 +67,13 @@ export interface BinanceUsdmExecutionContext {
   }>;
   readonly capabilities: Readonly<{
     protected_entry: true;
-    full_protected_close: true;
+    original_entry_full_close: true;
+    protection_revision: true;
     restart_reconciliation: true;
-    partial_reduction: false;
-    stop_amendment: false;
-    target_amendment: false;
+    partial_reduction: true;
+    stop_replacement: true;
+    target_replacement: true;
+    native_algo_amendment: false;
   }>;
   readonly blockers: readonly string[];
 }
@@ -317,7 +319,7 @@ export function compileBinanceUsdmExecutionContext(
   const uniqueBlockers = [...new Set(blockers)].sort();
   const status = uniqueBlockers.length === 0 ? "ready" : "blocked";
   return deepFreeze({
-    schema_version: "glitch.crypto.binance-usdm-execution-context.v1",
+    schema_version: "glitch.crypto.binance-usdm-execution-context.v2",
     venue: "binance-usdm",
     environment: "testnet",
     symbol,
@@ -358,11 +360,13 @@ export function compileBinanceUsdmExecutionContext(
     },
     capabilities: {
       protected_entry: true,
-      full_protected_close: true,
+      original_entry_full_close: true,
+      protection_revision: true,
       restart_reconciliation: true,
-      partial_reduction: false,
-      stop_amendment: false,
-      target_amendment: false,
+      partial_reduction: true,
+      stop_replacement: true,
+      target_replacement: true,
+      native_algo_amendment: false,
     },
     blockers: uniqueBlockers,
   });

@@ -5,7 +5,10 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   deriveBinanceUsdmMutationIds,
+  deriveBinanceUsdmProtectionRevisionIds,
+  subtractPositiveDecimal,
   validateBinanceUsdmProtectedEntry,
+  validateBinanceUsdmProtectionRevision,
 } from "../src/venue/binance-usdm/mutation-contract.js";
 import {
   BinanceUsdmMutationClient,
@@ -14,6 +17,7 @@ import {
 } from "../src/venue/binance-usdm/mutation-client.js";
 
 const intentId = "123e4567-e89b-42d3-a456-426614174000";
+const revisionIntentId = "223e4567-e89b-42d3-a456-426614174000";
 
 test("Binance mutation identities are deterministic, role-specific, and venue-valid", () => {
   const first = deriveBinanceUsdmMutationIds(intentId);
@@ -43,6 +47,61 @@ test("protected-entry geometry is canonical and direction owns venue sides", () 
   assert.equal(plan.quantity, "0.01");
   assert.equal(plan.stopPrice, "59000");
   assert.equal(plan.targetPrice, "61000");
+});
+
+test("protection revision identities and remaining quantity are exact", () => {
+  const currentIds = deriveBinanceUsdmMutationIds(intentId);
+  const plan = validateBinanceUsdmProtectionRevision({
+    revisionIntentId,
+    current: {
+      positionIntentId: intentId,
+      symbol: "btcusdt",
+      direction: "LONG",
+      quantity: "0.0100",
+      stopPrice: "59000.00",
+      targetPrice: "61000.00",
+      stopClientAlgoId: currentIds.stopClientAlgoId,
+      targetClientAlgoId: currentIds.targetClientAlgoId,
+    },
+    reductionQuantity: "0.0035",
+    nextStopPrice: "59500.00",
+    nextTargetPrice: "61500.00",
+  });
+
+  assert.deepEqual(plan.ids, deriveBinanceUsdmProtectionRevisionIds(revisionIntentId));
+  assert.equal(new Set(Object.values(plan.ids)).size, 3);
+  assert.equal(plan.reductionQuantity, "0.0035");
+  assert.equal(plan.remainingQuantity, "0.0065");
+  assert.equal(plan.nextStopPrice, "59500");
+  assert.equal(plan.exitSide, "SELL");
+  assert.equal(subtractPositiveDecimal("1000.00000001", "999.99999999"), "0.00000002");
+});
+
+test("protection revision rejects no-op and full-position reduction", () => {
+  const currentIds = deriveBinanceUsdmMutationIds(intentId);
+  const current = {
+    positionIntentId: intentId,
+    symbol: "BTCUSDT",
+    direction: "LONG" as const,
+    quantity: "0.01",
+    stopPrice: "59000",
+    targetPrice: "61000",
+    stopClientAlgoId: currentIds.stopClientAlgoId,
+    targetClientAlgoId: currentIds.targetClientAlgoId,
+  };
+  assert.throws(() => validateBinanceUsdmProtectionRevision({
+    revisionIntentId,
+    current,
+    nextStopPrice: "59000",
+    nextTargetPrice: "61000",
+  }), /must change/);
+  assert.throws(() => validateBinanceUsdmProtectionRevision({
+    revisionIntentId,
+    current,
+    reductionQuantity: "0.01",
+    nextStopPrice: "59500",
+    nextTargetPrice: "61500",
+  }), /strictly smaller/);
 });
 
 test("mutation transport rejects production and non-loopback custom origins", () => {

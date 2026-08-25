@@ -34,11 +34,14 @@ callback, signer, or mutation handle.
 
 ## Capability boundary
 
-The context reports the current source capability truth:
+Execution-context version 2 reports the current source capability truth:
 
-- protected entry, full protected close, and restart reconciliation exist;
-- partial reduction and stop/target amendment do not yet exist in the Binance
-  coordinator.
+- protected entry, exact partial reduction, stop-first stop/target replacement,
+  original-entry full close, and restart reconciliation exist;
+- Binance still has no native untriggered conditional-order amendment, so
+  protection movement uses attributable replacement;
+- full close after one or more protection revisions still requires the generic
+  owned-position close contract before engine binding.
 
 Even a ready context declares:
 

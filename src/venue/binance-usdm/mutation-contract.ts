@@ -18,6 +18,43 @@ export interface BinanceUsdmMutationIds {
   emergencyCloseClientOrderId: string;
 }
 
+export interface BinanceUsdmOwnedProtection {
+  positionIntentId: string;
+  symbol: string;
+  direction: BinanceUsdmPositionDirection;
+  quantity: string;
+  stopPrice: string;
+  targetPrice: string;
+  stopClientAlgoId: string;
+  targetClientAlgoId: string;
+}
+
+export interface BinanceUsdmProtectionRevisionRequest {
+  revisionIntentId: string;
+  current: BinanceUsdmOwnedProtection;
+  reductionQuantity?: string | null;
+  nextStopPrice: string;
+  nextTargetPrice: string;
+}
+
+export interface BinanceUsdmProtectionRevisionIds {
+  reductionClientOrderId: string;
+  stopClientAlgoId: string;
+  targetClientAlgoId: string;
+}
+
+export interface ValidatedBinanceUsdmProtectionRevision {
+  revisionIntentId: string;
+  current: BinanceUsdmOwnedProtection;
+  entrySide: BinanceUsdmOrderSide;
+  exitSide: BinanceUsdmOrderSide;
+  reductionQuantity: string | null;
+  remainingQuantity: string;
+  nextStopPrice: string;
+  nextTargetPrice: string;
+  ids: BinanceUsdmProtectionRevisionIds;
+}
+
 export interface ValidatedBinanceUsdmProtectedEntry {
   intentId: string;
   symbol: string;
@@ -62,6 +99,101 @@ export function deriveBinanceUsdmMutationIds(intentId: string): BinanceUsdmMutat
     targetClientAlgoId: orderId("gct", compact),
     emergencyCloseClientOrderId: orderId("gcf", compact),
   };
+}
+
+export function validateBinanceUsdmProtectionRevision(
+  request: BinanceUsdmProtectionRevisionRequest,
+): ValidatedBinanceUsdmProtectionRevision {
+  const revisionIntentId = canonicalUuid(request.revisionIntentId);
+  const current: BinanceUsdmOwnedProtection = {
+    positionIntentId: canonicalUuid(request.current.positionIntentId),
+    symbol: canonicalSymbol(request.current.symbol),
+    direction: direction(request.current.direction),
+    quantity: canonicalPositiveDecimal(request.current.quantity, "current quantity"),
+    stopPrice: canonicalPositiveDecimal(request.current.stopPrice, "current stop price"),
+    targetPrice: canonicalPositiveDecimal(request.current.targetPrice, "current target price"),
+    stopClientAlgoId: canonicalClientId(request.current.stopClientAlgoId),
+    targetClientAlgoId: canonicalClientId(request.current.targetClientAlgoId),
+  };
+  if (current.stopClientAlgoId === current.targetClientAlgoId) {
+    throw new Error("Binance current stop and target identities must differ");
+  }
+  const nextStopPrice = canonicalPositiveDecimal(
+    request.nextStopPrice,
+    "next stop price",
+  );
+  const nextTargetPrice = canonicalPositiveDecimal(
+    request.nextTargetPrice,
+    "next target price",
+  );
+  const reductionQuantity = request.reductionQuantity === undefined ||
+      request.reductionQuantity === null
+    ? null
+    : canonicalPositiveDecimal(request.reductionQuantity, "reduction quantity");
+  if (
+    reductionQuantity === null &&
+    decimalEquals(nextStopPrice, current.stopPrice) &&
+    decimalEquals(nextTargetPrice, current.targetPrice)
+  ) {
+    throw new Error("Binance protection revision must change quantity or geometry");
+  }
+  const remainingQuantity = reductionQuantity === null
+    ? current.quantity
+    : subtractPositiveDecimal(current.quantity, reductionQuantity);
+  const ids = deriveBinanceUsdmProtectionRevisionIds(revisionIntentId);
+  if (
+    ids.stopClientAlgoId === current.stopClientAlgoId ||
+    ids.stopClientAlgoId === current.targetClientAlgoId ||
+    ids.targetClientAlgoId === current.stopClientAlgoId ||
+    ids.targetClientAlgoId === current.targetClientAlgoId
+  ) {
+    throw new Error("Binance replacement protection identities must be new");
+  }
+  return {
+    revisionIntentId,
+    current,
+    entrySide: current.direction === "LONG" ? "BUY" : "SELL",
+    exitSide: current.direction === "LONG" ? "SELL" : "BUY",
+    reductionQuantity,
+    remainingQuantity,
+    nextStopPrice,
+    nextTargetPrice,
+    ids,
+  };
+}
+
+export function deriveBinanceUsdmProtectionRevisionIds(
+  revisionIntentId: string,
+): BinanceUsdmProtectionRevisionIds {
+  const compact = canonicalUuid(revisionIntentId).replaceAll("-", "");
+  return {
+    reductionClientOrderId: orderId("gcr", compact),
+    stopClientAlgoId: orderId("grs", compact),
+    targetClientAlgoId: orderId("grt", compact),
+  };
+}
+
+export function subtractPositiveDecimal(
+  minuend: string,
+  subtrahend: string,
+): string {
+  const left = canonicalPositiveDecimal(minuend, "decimal minuend");
+  const right = canonicalPositiveDecimal(subtrahend, "decimal subtrahend");
+  const leftFraction = left.split(".")[1]?.length ?? 0;
+  const rightFraction = right.split(".")[1]?.length ?? 0;
+  const scaleDigits = Math.max(leftFraction, rightFraction);
+  const scale = 10n ** BigInt(scaleDigits);
+  const difference = decimalToScaledInteger(left, scaleDigits, scale) -
+    decimalToScaledInteger(right, scaleDigits, scale);
+  if (difference <= 0n) {
+    throw new Error(
+      "Binance reduction quantity must be strictly smaller than current quantity",
+    );
+  }
+  const whole = difference / scale;
+  const fraction = (difference % scale).toString().padStart(scaleDigits, "0")
+    .replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
 export function canonicalPositiveDecimal(value: string, name: string): string {
@@ -122,6 +254,20 @@ function canonicalUuid(value: string): string {
   return canonical;
 }
 
+function direction(value: string): BinanceUsdmPositionDirection {
+  if (value !== "LONG" && value !== "SHORT") {
+    throw new Error("Binance protected position direction must be LONG or SHORT");
+  }
+  return value;
+}
+
+function canonicalClientId(value: string): string {
+  if (typeof value !== "string" || !/^[.A-Z:/a-z0-9_-]{1,36}$/.test(value)) {
+    throw new Error("Binance owned client order ID is invalid");
+  }
+  return value;
+}
+
 function canonicalSymbol(value: string): string {
   const symbol = typeof value === "string" ? value.trim().toUpperCase() : "";
   if (!/^[A-Z0-9]{5,24}$/.test(symbol)) {
@@ -134,6 +280,16 @@ function canonicalDecimal(value: string): string {
   const [whole = "0", fraction = ""] = value.split(".");
   const trimmedFraction = fraction.replace(/0+$/, "");
   return trimmedFraction.length > 0 ? whole + "." + trimmedFraction : whole;
+}
+
+function decimalToScaledInteger(
+  value: string,
+  scaleDigits: number,
+  scale: bigint,
+): bigint {
+  const [whole = "0", fraction = ""] = value.split(".");
+  return BigInt(whole) * scale +
+    BigInt(fraction.padEnd(scaleDigits, "0") || "0");
 }
 
 function orderId(prefix: string, compactUuid: string): string {

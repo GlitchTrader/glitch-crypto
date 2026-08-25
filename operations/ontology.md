@@ -94,6 +94,14 @@ Versioned decision with immutable UUID/body identity. It requests one supported 
 
 One attributable filled quantity with entry identity and exact native stop/target identities. A later addition is a new tranche, never an implicit average.
 
+### ProtectionRevision
+
+Attributable transition from one exact owned stop/target pair to another. An
+optional exact reduce-only fill determines the new quantity. Because the venue
+cannot amend an untriggered conditional order, the new stop and target are
+proven before the old target and stop are cleaned up. Ambiguity retains the last
+proven protection and becomes reconciliation state.
+
 ### NativeOrder
 
 Venue-owned mutation identity. Entry, stop, target, amendment, reduction, and exit identities are never inferred from price proximity when the venue provides explicit relations.
@@ -166,6 +174,11 @@ Protected entry:
 entry_visibility_pending → filled_unprotected → stop_visibility_pending
                           → emergency_flatten_pending → closed
                           → open_protected_target_pending → open_protected
+
+Protection revision:
+current_pair_proven → reduction_visibility_pending → replacement_stop_pending
+                    → replacement_target_pending → old_cleanup_pending
+                    → revision_protected
 
 Lesson:
 proposed → testing → confirmed/contradicted → active → revised/retired/expired

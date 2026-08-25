@@ -213,6 +213,10 @@ export class BinanceUsdmMutationClient {
   }
 
   async placeEmergencyClose(input: BinanceUsdmMarketOrderInput): Promise<BinanceUsdmMutationResult> {
+    return this.placeReduceOnlyMarket(input);
+  }
+
+  async placeReduceOnlyMarket(input: BinanceUsdmMarketOrderInput): Promise<BinanceUsdmMutationResult> {
     return this.signedMutation("POST", "/fapi/v1/order", {
       symbol: input.symbol,
       side: input.side,

@@ -22,6 +22,21 @@ The lifecycle is:
     restart reconciliation;
 11. leave unresolved outcomes nonterminal and block blind retry.
 
+Protected revision adds a second dormant lifecycle because Binance does not
+support modification of an untriggered conditional Algo order:
+
+1. prove the exact current reduce-only stop and target;
+2. optionally prove one deterministic exact-quantity reduce-only market partial;
+3. derive remaining quantity with exact decimal subtraction;
+4. submit and prove a replacement stop for the remaining quantity;
+5. submit and prove a replacement target only after stop proof;
+6. cancel the old target and then the old stop only after the new pair is proven;
+7. keep ambiguity nonterminal and reconstruct revision state through GET only.
+
+Old and new protection may overlap during replacement. Every conditional order
+is reduce-only, and the old stop is never removed before the complete new pair
+is proven.
+
 Symbol-wide cancel-all is outside this contract. A close that is ambiguous or
 not found in one immediate query leaves native protection untouched. Every
 DELETE uses the same sanitized before-transport evidence and ambiguity rules as

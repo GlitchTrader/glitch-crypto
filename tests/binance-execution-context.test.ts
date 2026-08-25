@@ -26,7 +26,9 @@ test("coherent fresh Testnet truths compile to immutable non-authorizing readine
   assert.equal(context.market.mark_price, "60000.10");
   assert.equal(context.market.best_bid, "60000.00");
   assert.equal(context.contract.market_quantity_step, "0.001");
-  assert.equal(context.capabilities.partial_reduction, false);
+  assert.equal(context.capabilities.partial_reduction, true);
+  assert.equal(context.capabilities.stop_replacement, true);
+  assert.equal(context.capabilities.native_algo_amendment, false);
   assert.equal(Object.isFrozen(context), true);
   assert.equal(Object.isFrozen(context.account), true);
   assert.equal(Object.isFrozen(context.blockers), true);
