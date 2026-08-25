@@ -8,6 +8,6 @@
 - [x] I006 Prove invalid-frame retention, tamper rejection, and reconnect identity.
 - [x] I007 Preserve the historical fixture's explicit legacy boundary.
 - [x] I008 Retain a bounded observed replay-grade Testnet depth fixture.
-- [ ] I009 Update docs, ontology, ADR, Rail, and GitHub evidence.
-- [ ] I010 Run the complete repository gate.
-- [ ] I011 Commit and push directly to `main`.
+- [x] I009 Update docs, ontology, ADR, Rail, and GitHub evidence.
+- [x] I010 Run the complete repository gate.
+- [x] I011 Commit and push directly to `main`.
