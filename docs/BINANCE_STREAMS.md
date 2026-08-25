@@ -31,7 +31,13 @@ Then run:
 npm run binance:stream -- account
 ```
 
-The private lane creates and renews a user-data listen key, buffers events while REST balances/positions/open orders reconcile, then applies buffered events in arrival order.
+The private lane creates and renews a user-data listen key, buffers events while
+REST balances/positions/open orders reconcile, then applies buffered events in
+arrival order. Private state version 2 keeps local reconciliation observation
+time separate from provider event/transaction time and preserves
+`availableBalance` separately from wallet and cross-wallet balance. Because an
+`ACCOUNT_UPDATE` does not carry current available balance, it invalidates that
+snapshot-only field until the next REST reconciliation.
 
 ## Evidence
 

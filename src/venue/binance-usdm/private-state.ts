@@ -4,6 +4,7 @@ export interface BinancePrivateBalance {
   asset: string;
   wallet_balance: string;
   cross_wallet_balance: string;
+  available_balance: string | null;
   balance_change: string | null;
 }
 
@@ -40,10 +41,11 @@ export interface BinancePrivateOrder {
 }
 
 export interface BinancePrivateStateView {
-  schema_version: "glitch.crypto.binance-usdm-private-state.v1";
+  schema_version: "glitch.crypto.binance-usdm-private-state.v2";
   stream_expired: boolean;
   last_event_time: number | null;
   last_transaction_time: number | null;
+  last_reconciliation_time: number | null;
   balances: BinancePrivateBalance[];
   positions: BinancePrivatePosition[];
   orders: BinancePrivateOrder[];
@@ -65,6 +67,7 @@ export class BinanceUsdmPrivateState {
   private streamExpired = false;
   private lastEventTime: number | null = null;
   private lastTransactionTime: number | null = null;
+  private lastReconciliationTime: number | null = null;
 
   apply(input: unknown): BinancePrivateApplyResult {
     const event = objectValue(input, "private stream event");
@@ -111,8 +114,12 @@ export class BinanceUsdmPrivateState {
           asset,
           wallet_balance: decimalString(balance.balance ?? balance.walletBalance, "wallet balance"),
           cross_wallet_balance: decimalString(
-            balance.crossWalletBalance ?? balance.availableBalance ?? balance.balance,
+            balance.crossWalletBalance ?? balance.balance ?? balance.walletBalance,
             "cross wallet balance",
+          ),
+          available_balance: optionalDecimalString(
+            balance.availableBalance,
+            "available balance",
           ),
           balance_change: null,
         });
@@ -149,7 +156,7 @@ export class BinanceUsdmPrivateState {
     }
 
     if (input.observedAt !== undefined) {
-      this.lastTransactionTime = safeInteger(input.observedAt, "snapshot observedAt");
+      this.lastReconciliationTime = safeInteger(input.observedAt, "snapshot observedAt");
     }
     this.streamExpired = false;
     return this.view();
@@ -157,10 +164,11 @@ export class BinanceUsdmPrivateState {
 
   view(): BinancePrivateStateView {
     return {
-      schema_version: "glitch.crypto.binance-usdm-private-state.v1",
+      schema_version: "glitch.crypto.binance-usdm-private-state.v2",
       stream_expired: this.streamExpired,
       last_event_time: this.lastEventTime,
       last_transaction_time: this.lastTransactionTime,
+      last_reconciliation_time: this.lastReconciliationTime,
       balances: [...this.balances.values()].sort((a, b) => a.asset.localeCompare(b.asset)),
       positions: [...this.positions.values()].sort((a, b) =>
         positionKey(a.symbol, a.position_side).localeCompare(positionKey(b.symbol, b.position_side))),
@@ -193,6 +201,7 @@ export class BinanceUsdmPrivateState {
         asset,
         wallet_balance: decimalString(balance.wb, "wallet balance"),
         cross_wallet_balance: decimalString(balance.cw, "cross wallet balance"),
+        available_balance: null,
         balance_change: optionalDecimalString(balance.bc, "balance change", true),
       });
     }

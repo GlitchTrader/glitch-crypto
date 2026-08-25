@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { inspectBinanceMarketEvent } from "./market-events.js";
+import {
+  inspectBinanceMarketEvent,
+  type BinanceAggregateTradeEventSummary,
+  type BinanceMarkPriceEventSummary,
+} from "./market-events.js";
 import type {
   BinanceRawMarketFrameInput,
   BinanceRawMarketProviderSequence,
@@ -32,7 +36,7 @@ export interface BinanceMarketStreamRecorderOptions {
 }
 
 export interface BinanceMarketStreamRecorderStatus {
-  schema_version: "glitch.crypto.binance-usdm-market-recorder-status.v1";
+  schema_version: "glitch.crypto.binance-usdm-market-recorder-status.v2";
   desired_running: boolean;
   mutation_authority: false;
   symbol: string;
@@ -44,6 +48,8 @@ export interface BinanceMarketStreamRecorderStatus {
   last_aggregate_trade_id: number | null;
   last_aggregate_trade_event_time: number | null;
   last_mark_price_event_time: number | null;
+  last_aggregate_trade: BinanceAggregateTradeEventSummary | null;
+  last_mark_price: BinanceMarkPriceEventSummary | null;
 }
 
 export class BinanceMarketStreamRecorder {
@@ -58,6 +64,8 @@ export class BinanceMarketStreamRecorder {
   private lastAggregateTradeId: number | null = null;
   private lastAggregateTradeEventTime: number | null = null;
   private lastMarkPriceEventTime: number | null = null;
+  private lastAggregateTrade: BinanceAggregateTradeEventSummary | null = null;
+  private lastMarkPrice: BinanceMarkPriceEventSummary | null = null;
 
   constructor(private readonly options: BinanceMarketStreamRecorderOptions) {}
 
@@ -83,7 +91,7 @@ export class BinanceMarketStreamRecorder {
 
   status(): BinanceMarketStreamRecorderStatus {
     return {
-      schema_version: "glitch.crypto.binance-usdm-market-recorder-status.v1",
+      schema_version: "glitch.crypto.binance-usdm-market-recorder-status.v2",
       desired_running: this.desiredRunning,
       mutation_authority: false,
       symbol: this.options.symbol,
@@ -95,6 +103,10 @@ export class BinanceMarketStreamRecorder {
       last_aggregate_trade_id: this.lastAggregateTradeId,
       last_aggregate_trade_event_time: this.lastAggregateTradeEventTime,
       last_mark_price_event_time: this.lastMarkPriceEventTime,
+      last_aggregate_trade: this.lastAggregateTrade
+        ? { ...this.lastAggregateTrade }
+        : null,
+      last_mark_price: this.lastMarkPrice ? { ...this.lastMarkPrice } : null,
     };
   }
 
@@ -103,6 +115,7 @@ export class BinanceMarketStreamRecorder {
       return;
     }
     this.clearRestartTimer();
+    this.resetCurrentMarketState();
     const epoch = ++this.epoch;
     const connectionId =
       this.options.connectionIdFactory?.() ?? randomUUID();
@@ -213,6 +226,7 @@ export class BinanceMarketStreamRecorder {
         this.aggregateTradeMessages += 1;
         this.lastAggregateTradeId = summary.aggregate_trade_id;
         this.lastAggregateTradeEventTime = summary.event_time;
+        this.lastAggregateTrade = summary;
       } else {
         if (
           this.lastMarkPriceEventTime !== null &&
@@ -222,6 +236,7 @@ export class BinanceMarketStreamRecorder {
         }
         this.markPriceMessages += 1;
         this.lastMarkPriceEventTime = summary.event_time;
+        this.lastMarkPrice = summary;
       }
       this.reconnectAttempt = 0;
     } catch (error) {
@@ -269,6 +284,14 @@ export class BinanceMarketStreamRecorder {
       this.options.scheduler.clearTimeout(this.restartTimer);
       this.restartTimer = null;
     }
+  }
+
+  private resetCurrentMarketState(): void {
+    this.lastAggregateTradeId = null;
+    this.lastAggregateTradeEventTime = null;
+    this.lastMarkPriceEventTime = null;
+    this.lastAggregateTrade = null;
+    this.lastMarkPrice = null;
   }
 
   private record(

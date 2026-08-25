@@ -42,6 +42,14 @@ Sanitized point-in-time proof that a named Testnet account, instrument contract,
 mode, leverage, collateral, fee, position, and order envelope meets declared
 prerequisites. It reports readiness but owns no mutation authority.
 
+### VenueExecutionContext
+
+Immutable point-in-time compilation of an accepted preflight, continuous public
+depth, public market, and reconciled private account state. It exposes exact
+risk inputs plus stable blockers, but contains no credential, transport client,
+signer, mutation handle, or engine-binding authority. `ready` means its supplied
+Testnet observations are coherent and fresh; it does not authorize an effect.
+
 ### UsablePot
 
 A sizing cap:
@@ -118,6 +126,8 @@ Invariants:
 - no duplicate mutation for the same UUID/body;
 - every filled quantity is protected or explicitly flattening;
 - risk-reducing actions remain available when new exposure is blocked.
+- stale, disconnected, contradictory, or unreconciled context cannot authorize
+  new exposure;
 
 ### DailyRisk aggregate
 

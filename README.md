@@ -101,6 +101,8 @@ The gateway rejects nonnumeric loopback binds and identical tokens.
 
 For Binance Futures Testnet account readiness, see
 [`docs/BINANCE_TESTNET_PREFLIGHT.md`](docs/BINANCE_TESTNET_PREFLIGHT.md).
+The non-authorizing account-and-market compilation contract is documented in
+[`docs/BINANCE_EXECUTION_CONTEXT.md`](docs/BINANCE_EXECUTION_CONTEXT.md).
 
 ## Run
 

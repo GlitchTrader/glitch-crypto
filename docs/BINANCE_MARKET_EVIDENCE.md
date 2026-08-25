@@ -26,6 +26,12 @@ the exact decoded WebSocket frame and SHA-256 before inspection, together with
 venue, instrument, channel, socket connection ID, exchange time, wall-clock and
 monotonic receive time, provider sequence identity, and inspection version.
 
+Recorder status version 2 also retains copies of the latest strictly inspected
+aggregate-trade and mark-price summaries for deterministic freshness checks.
+Those current summaries reset on every connection attempt, so a newly opened
+connection cannot borrow readiness from a prior connection. Exact raw evidence
+remains separate and unchanged.
+
 ## Verify
 
 ```bash

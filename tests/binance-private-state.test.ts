@@ -43,6 +43,7 @@ test("private account and order events are attributable and idempotent", () => {
   const view = state.view();
   assert.equal(view.applied_event_count, 2);
   assert.equal(view.balances[0]?.wallet_balance, "1000.00");
+  assert.equal(view.balances[0]?.available_balance, null);
   assert.equal(view.positions[0]?.quantity, "0.010");
   assert.equal(view.orders[0]?.client_order_id, "glitch-entry-1");
 });
@@ -51,7 +52,12 @@ test("REST reconciliation reconstructs private state after restart", () => {
   const state = new BinanceUsdmPrivateState();
   const view = state.reconcile({
     observedAt: 2000,
-    balances: [{ asset: "USDT", balance: "995.00", crossWalletBalance: "995.00" }],
+    balances: [{
+      asset: "USDT",
+      balance: "995.00",
+      crossWalletBalance: "995.00",
+      availableBalance: "990.00",
+    }],
     positions: [{ symbol: "BTCUSDT", positionSide: "BOTH", positionAmt: "0", entryPrice: "0", unRealizedProfit: "0", marginType: "isolated", isolatedWallet: "0" }],
     openOrders: [{
       symbol: "BTCUSDT",
@@ -71,7 +77,20 @@ test("REST reconciliation reconstructs private state after restart", () => {
       updateTime: 1999,
     }],
   });
-  assert.equal(view.last_transaction_time, 2000);
+  assert.equal(view.last_transaction_time, null);
+  assert.equal(view.last_reconciliation_time, 2000);
+  assert.equal(view.balances[0]?.available_balance, "990.00");
   assert.equal(view.orders[0]?.reduce_only, true);
   assert.equal(view.stream_expired, false);
+
+  state.apply({
+    e: "ACCOUNT_UPDATE",
+    E: 2001,
+    T: 2001,
+    a: {
+      B: [{ a: "USDT", wb: "996.00", cw: "996.00", bc: "1.00" }],
+      P: [],
+    },
+  });
+  assert.equal(state.view().balances[0]?.available_balance, null);
 });

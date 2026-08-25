@@ -206,10 +206,11 @@ function emptyPrivateStatus(): BinancePrivateStreamLaneStatus {
     reconnect_attempt: 0,
     buffered_events: 0,
     account: {
-      schema_version: "glitch.crypto.binance-usdm-private-state.v1",
+      schema_version: "glitch.crypto.binance-usdm-private-state.v2",
       stream_expired: false,
       last_event_time: null,
       last_transaction_time: null,
+      last_reconciliation_time: null,
       balances: [],
       positions: [],
       orders: [],

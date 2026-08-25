@@ -159,6 +159,11 @@ test("market recorder uses the routed market socket and retains both raw event f
   assert.equal(recorder.status().state, "running");
   assert.equal(recorder.status().aggregate_trade_messages, 1);
   assert.equal(recorder.status().mark_price_messages, 1);
+  assert.equal(recorder.status().last_mark_price?.mark_price, "79700.10000000");
+  assert.equal(
+    recorder.status().last_aggregate_trade?.aggregate_trade_id,
+    305_925_519,
+  );
   assert.equal(
     evidence.records.filter(
       (record) =>
@@ -175,6 +180,14 @@ test("market recorder uses the routed market socket and retains both raw event f
   assert.equal(messages[0]?.provenance.instrument, "BTCUSDT");
   assert.equal(messages[0]?.provenance.raw_frame_sha256.length, 64);
   assert.equal(messages[1]?.provenance.provider_sequence.aggregate_trade_id, 305_925_519);
+  socket.close(1006, "network");
+  const reconnect = [...scheduler.timeouts.entries()][0];
+  assert.ok(reconnect);
+  scheduler.timeouts.delete(reconnect![0]);
+  reconnect![1]();
+  assert.equal(recorder.status().state, "connecting");
+  assert.equal(recorder.status().last_mark_price, null);
+  assert.equal(recorder.status().last_aggregate_trade, null);
   recorder.stop();
   assert.equal(scheduler.timeouts.size, 0);
 });
