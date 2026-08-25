@@ -92,3 +92,22 @@ The resulting `ProtectedEntryPlan` contains a canonical request only when every
 gate passes and still declares `mutation_authority=false` and
 `engine_binding_authority=false`. It is input to a later bounded async
 orchestrator, never a transport command.
+
+## Bounded Testnet orchestration
+
+Phase P adds a dormant single-writer async orchestrator for protected entry and
+risk-reducing full close. It requires a fresh ready plan or binding plus a
+separate operator-issued permit bound to Testnet, BTCUSDT, one intent, one
+action, the exact proof SHA-256, a maximum quantity, and at most five minutes of
+validity.
+
+The orchestrator commits typed `intent_persisted` ownership state through CAS
+before calling an effect. A thrown/unknown effect leaves that request pending.
+After restart, recovery dispatches only the exact entry, revision, or close
+query contract and applies its proof result; it never blindly resubmits.
+Overlapping operations are rejected in-process and CAS remains the
+cross-instance writer guard.
+
+No runtime imports or selects the orchestrator, no code issues permits, and no
+credential or public mutation route was added. Revision/partial execution also
+remains unsupported until a separate management-risk plan is accepted.

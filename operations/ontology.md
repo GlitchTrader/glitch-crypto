@@ -60,6 +60,22 @@ leverage, fees, cost stress, margin, daily loss, and active-floor enforcement.
 The daily objective is reported and may activate a floor, but never supplies
 trade geometry or a reason to trade.
 
+### TestnetMutationPermit
+
+Operator-issued, one-intent authorization artifact scoped to Testnet, BTCUSDT,
+one supported action, the exact plan/binding body hash, maximum quantity, and a
+short validity interval. It is neither a venue credential nor model authority;
+later operator-token runtime code owns issuance.
+
+### TestnetExecutionOrchestrator
+
+Dormant single-writer coordinator that validates a fresh proof plus permit,
+durably stages the complete request before an entry or full-close effect, and
+applies only proof-complete outcomes. Effect interruption leaves pending state;
+restart recovery dispatches the exact GET-only reconciliation contract and does
+not resubmit. Revision execution remains outside this aggregate until its
+management-risk plan is accepted.
+
 ### UsablePot
 
 A sizing cap:
