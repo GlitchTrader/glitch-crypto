@@ -9,4 +9,4 @@
 - [x] H007 Add deterministic integrity, invalid-frame, and reconnect tests.
 - [x] H008 Update docs, ontology, and ADR; Rail evidence follows validation.
 - [x] H009 Retain an observed replay-grade Testnet fixture and pass 72/72 tests.
-- [ ] H010 Commit and push directly to `main`.
+- [x] H010 Commit and push directly to `main` as `024fe7b`.

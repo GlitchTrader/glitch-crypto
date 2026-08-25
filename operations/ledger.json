@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project": "glitch-crypto",
-  "updated": "2026-08-25T01:59:32Z",
+  "updated": "2026-08-25T02:33:54Z",
   "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
   "items": [
     {
@@ -76,7 +76,10 @@
         "Windows strict build and 63 of 63 deterministic tests passed for the dormant private evidence gate.",
         "Commit 0a3423d adds a dormant protected-position close lifecycle: exact reduce-only close proof precedes exact target/stop cancellation, ambiguous close preserves both protections, cancellation ambiguity remains nonterminal, and restart reconciliation is GET-only.",
         "Windows strict build and 68 of 68 deterministic tests passed for protected close ordering, ambiguity handling, exact cleanup identity, restart reconstruction, and credential-free DELETE evidence.",
-        "No Binance credential was used and no venue mutation occurred; authenticated Testnet runtime acceptance remains pending explicit read-only evidence approval followed by separate mutation approval."
+        "No Binance credential was used and no venue mutation occurred; authenticated Testnet runtime acceptance remains pending explicit read-only evidence approval followed by separate mutation approval.",
+        "Commit 024fe7b adds version-2 exact raw-frame market provenance with connection identity, exchange and dual receive clocks, provider sequence identity, inspection version, SHA-256 integrity, explicit version-1 legacy classification, and fail-closed tamper verification.",
+        "A credential-free 8.010-second Futures Testnet capture retained 37 aggregate trades and 7 mark-price updates as 44 replay-grade messages on one connection with zero errors, backoffs, invalid messages, hash mismatches, payload mismatches, identity mismatches, unattributed connections, or receive-order faults; canonical SHA-256 be102c024e52d8265857c41683504cc7f5a5609f01295c0f69fcf8e77173f5db.",
+        "Windows strict build and 72 of 72 deterministic tests passed after freezing the replay-grade Testnet provenance fixture."
       ],
       "sources": [
         "https://github.com/GlitchTrader/glitch-crypto/issues/4",
@@ -93,8 +96,11 @@
         "operations/specs/GC-002/market-evidence-spec.md",
         "operations/specs/GC-002/private-evidence-spec.md",
         "operations/specs/GC-002/cleanup-spec.md",
+        "operations/specs/GC-002/event-provenance-spec.md",
         "operations/adrs/0005-binance-testnet-protected-mutation.md",
+        "operations/adrs/0006-versioned-raw-market-provenance.md",
         "operations/evidence/GC-002/binance-mainnet-market-2026-08-24.jsonl.manifest.json",
+        "operations/evidence/GC-002/binance-testnet-market-provenance-2026-08-25.jsonl.manifest.json",
         "operations/evidence/GC-002/binance-testnet-websocket-routing-2026-08-24.json",
         "https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/Important-WebSocket-Change-Notice",
         "https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/trade"
@@ -112,14 +118,15 @@
         "assignee": "AIbert (Codex)",
         "claimed_at": "2026-08-25T00:34:52Z"
       },
-      "notes": "Binance USD-M public Futures Testnet transport and replay are accepted as a sub-gate. Protected entry, close, and authenticated preflight are implemented only as dormant deterministic source. No Testnet credentials were present in the delivery environment. Authenticated private evidence, observed Testnet mutations, engine integration, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
+      "notes": "Binance USD-M public Futures Testnet transport, depth replay, and replay-grade aggregate-trade/mark-price provenance are accepted as sub-gates. Protected entry, close, and authenticated preflight are implemented only as dormant deterministic source. No Testnet credentials were present in the delivery environment. Authenticated private evidence, observed Testnet mutations, engine integration, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
       "extensions": {
-        "active_spec": "operations/specs/GC-002/cleanup-spec.md",
-        "phase": "binance-usdm-protected-lifecycle-source-implemented-authenticated-testnet-evidence-pending",
+        "active_spec": "operations/specs/GC-002/event-provenance-spec.md",
+        "phase": "binance-usdm-replay-grade-public-evidence-accepted-authenticated-testnet-evidence-pending",
         "public_testnet_transport": "accepted",
         "routed_public_market_testnet_transport": "observed",
         "routed_private_testnet_transport": "source_tested_runtime_pending",
         "raw_mainnet_market_evidence": "accepted_for_replay_input",
+        "raw_testnet_market_provenance": "accepted_for_event_replay",
         "authenticated_private_evidence_gate": "implemented_dormant",
         "authenticated_private_runtime_evidence": "pending_credentials_and_approval",
         "testnet_mutation_contract": "implemented_dormant",
