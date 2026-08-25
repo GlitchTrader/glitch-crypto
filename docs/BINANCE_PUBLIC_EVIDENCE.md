@@ -16,7 +16,9 @@ The capture command:
 - records supervisor start/stop, stream transitions, diff-depth messages, and the REST snapshot;
 - runs for 5-300 seconds and terminates deterministically;
 - refuses to overwrite an existing evidence file;
-- writes a SHA-256-bound manifest beside the JSONL evidence;
+- writes a SHA-256-bound manifest beside the JSONL evidence; its digest uses
+  canonical LF JSONL text so the same frozen session has one identity on every
+  supported checkout platform;
 - exits nonzero unless the frozen session passes the public replay contract;
 - never reads an API key and has no mutation authority.
 

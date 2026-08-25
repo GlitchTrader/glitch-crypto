@@ -1,5 +1,20 @@
 # Glitch Crypto ontology
 
+## Architectonic knowledge classes
+
+| Class | Repository form | Rule |
+|---|---|---|
+| Fact | source, official venue contract, or retained evidence | Cite provenance and observation time. |
+| Assumption | spec or ADR assumption | Name the validation path; never present it as fact. |
+| Decision | ADR | Record alternatives, consequences, and reversibility. |
+| Rule | constitution, authority contract, schema, or invariant | Use mandatory language and name the authority. |
+| Question | active spec or Wayfinder decision ticket | Resolve it or keep it visible; do not silently choose. |
+| Risk | Rail item, spec edge case, or evidence gate | Name likelihood, consequence, mitigation, and stop line when material. |
+
+Authority descends from the constitution and human instruction to official venue
+truth, accepted runtime evidence, source contracts and ADRs, tests, and finally
+inference. A lower class cannot overwrite a higher-authority fact.
+
 ## Distinctions
 
 | Kind | Meaning | Examples |

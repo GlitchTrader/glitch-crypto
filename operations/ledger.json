@@ -1,128 +1,150 @@
 {
-  "schema_version": "architectonic.rail.v1",
-  "metadata": {
-    "project": "glitch-crypto",
-    "updated_utc": "2026-08-24T23:22:00Z",
-    "source_map": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
-    "status_authority": "operations/ledger.json"
-  },
-  "rail": {
-    "active": "GC-002",
-    "items": [
-      {
-        "id": "GC-001",
-        "title": "Establish the protected daily-lock control plane",
-        "status": "complete",
-        "priority": "P0",
-        "dependencies": [],
-        "ticket": "https://github.com/GlitchTrader/glitch-crypto/issues/2",
-        "spec": "operations/specs/GC-001/spec.md",
-        "acceptance": [
-          "strict TypeScript build and deterministic tests pass",
-          "0.5 percent target scales from the usable pot",
-          "operator and model tokens are separated",
-          "entry sizing is stop-defined",
-          "protected entry and partial re-arm are durable",
-          "UUID replay/conflict and restart durability are proven",
-          "paired Hermes profile contract exists"
-        ],
-        "evidence": [
-          "local: npm run check — strict TypeScript build and 9/9 deterministic tests passing",
-          "local HTTP/CLI smoke: $1,000 equity, 0.5% objective=$5.00, $450 notional protected entry, $4.95 planned loss, $8.54 net target outcome, $1,005 active protected-equity floor",
-          "remote gateway CI: success at commit 502689ce9ce5e4525424c3f560cb88f1ed8f85d6",
-          "remote profile CI: success at commit 79278f92edc2d4e860b38c7613edfbf8920c266d",
-          "review: draft PR https://github.com/GlitchTrader/glitch-crypto/pull/3 paired with https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
-        ],
-        "notes": "Implementation is complete, CI-green, open, and deliberately unmerged.",
-        "pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/3",
-        "paired_pull_request": "https://github.com/GlitchTrader/glitch-crypto-hermes-profile/pull/1"
+  "schema_version": "1.0",
+  "project": "glitch-crypto",
+  "updated": "2026-08-25T00:34:52Z",
+  "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
+  "items": [
+    {
+      "id": "GC-001",
+      "title": "Establish the protected daily-lock control plane",
+      "status": "done",
+      "priority": "P0",
+      "owner_role": "builder",
+      "acceptance": [
+        "The strict TypeScript build and deterministic tests must pass.",
+        "The 0.5 percent objective must scale from the usable pot.",
+        "Operator and model authority tokens must remain separate.",
+        "Entry sizing must be stop-defined.",
+        "Protected entry and partial re-arm must be durable.",
+        "UUID replay, conflict detection, and restart durability must be proven.",
+        "The paired Hermes profile contract must exist."
+      ],
+      "depends_on": [],
+      "evidence": [
+        "Gateway foundation merged on main at 9523969756d451ddc371a5d542498dadafd325ee.",
+        "Paired profile foundation merged on main at 9d465211369cee1eb8d8cbfa4023948ab6bba63e.",
+        "The smoke evidence used 1,000 USD equity, a 5 USD objective, a 450 USD protected entry, 4.95 USD planned loss, an 8.54 USD net target outcome, and a 1,005 USD active protected-equity floor.",
+        "Strict build and deterministic control-plane tests passed before merge."
+      ],
+      "sources": [
+        "https://github.com/GlitchTrader/glitch-crypto/issues/2",
+        "operations/specs/GC-001/spec.md",
+        "operations/adrs/0002-daily-lock-semantics.md"
+      ],
+      "completed_at": "2026-08-24T23:47:58Z",
+      "notes": "This item establishes control-plane correctness, not venue or profitability acceptance."
+    },
+    {
+      "id": "GC-002",
+      "title": "Accept the first production venue adapter",
+      "status": "in_progress",
+      "priority": "P0",
+      "owner_role": "builder",
+      "acceptance": [
+        "The official capability contract must be recorded.",
+        "Read-only endpoint authority must be explicit and fail closed.",
+        "Credentials and signatures must not enter retained evidence.",
+        "Authenticated fee and precision discovery must be implemented and evidenced.",
+        "Public order-book continuity must be replay-proven.",
+        "Private account and order state plus restart reconciliation must be replay-proven.",
+        "Continuous public and private transport evidence must be captured.",
+        "Native protected entry and exact order ownership must be accepted.",
+        "Ambiguous transport and restart recovery must be accepted."
+      ],
+      "depends_on": [
+        "GC-001"
+      ],
+      "evidence": [
+        "Binance USD-M shadow discovery and supervised public/private stream code are on main.",
+        "Futures Testnet run 32788614491 recorded 111 public messages, one snapshot, zero reconnects, zero stream errors, contiguous sequence, and a ready non-crossed replay.",
+        "The USD-M order book now accepts snapshot overlap and enforces pu equal to the previous u after synchronization.",
+        "The observed public fixture is frozen at tests/fixtures/binance-usdm/observed-testnet-public.jsonl with canonical evidence SHA-256 0b1053f5607bfc9354e4744f993f42637dada8902b5982f69319c5b279dd2ab7.",
+        "Windows strict build and 34 of 34 deterministic tests passed after the direct-main integration."
+      ],
+      "sources": [
+        "https://github.com/GlitchTrader/glitch-crypto/issues/4",
+        "https://github.com/GlitchTrader/glitch-crypto/issues/5",
+        "operations/specs/GC-002/spec.md",
+        "operations/specs/GC-002/public-evidence-spec.md",
+        "docs/BINANCE_PUBLIC_EVIDENCE.md"
+      ],
+      "skill_refs": [
+        "wayfinder",
+        "to-spec",
+        "to-tickets",
+        "architectonic-ontology",
+        "architectonic-rail",
+        "github-spec-kit"
+      ],
+      "stop_line": "Do not use production credentials, submit a venue mutation, deploy, or claim production acceptance without explicit human authorization and the remaining evidence gates.",
+      "claim": {
+        "assignee": "AIbert (Codex)",
+        "claimed_at": "2026-08-25T00:34:52Z"
       },
-      {
-        "id": "GC-002",
-        "title": "Select and accept the first production venue adapter",
-        "status": "active",
-        "priority": "P0",
-        "dependencies": [
-          "GC-001"
-        ],
-        "ticket": "https://githu.com/GlitchTrader/glitch-crypto/issues/4",
-        "spec": "operations/specs/GC-002/spec.md",
+      "notes": "Binance USD-M public Futures Testnet transport and replay are accepted only as a sub-gate. Mainnet eligibility, authenticated private evidence, native protection, mutation ambiguity, fills, and production selection remain pending.",
+      "extensions": {
         "active_spec": "operations/specs/GC-002/public-evidence-spec.md",
-        "phase": "binance-usdm-public-testnet-accepted-private-and-production-gates-pending",
-        "phase_a_status": "complete",
-        "phase_a_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/6",
-        "phase_b_status": "code_complete_ci_green",
-        "phase_b_branch": "architect/gc-002-binance-streams",
-        "phase_b_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/7",
-        "phase_c_status": "public_testnet_transport_and_replay_accepted",
-        "phase_c_branch": "architect/gc-002-public-evidence",
-        "phase_c_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/8",
-        "acceptance": [
-          "official capability contract recorded",
-          "read-only endpoint authority is explicit and fail-closed",
-          "credentials and signatures cannot enter evidence",
-          "authenticated fee and precision discovery is implemented",
-          "public order-book continuity is replay-proven",
-          "private account/order state and restart reconciliation are replay-proven",
-          "continuous public/private transport evidence is captured",
-          "native protected entry and exact ownership are accepted",
-          "ambiguous transport and restart recovery are accepted"
-        ],
-        "evidence": [
-          "local isolated phase-A gate: strict TypeScript build and 10/10 Binance shadow tests passing",
-          "official Binance JavaScript USD-M connector inspected at commit 092e4f289e9047114fb8ec66256510cc207e16bb",
-          "remote phase-A commit: c967a59a67611cd09234f97e971225fe78879dde",
-          "remote phase-A CI: success in GitHub Actions run 32782846560",
-          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/6 over https://github.com/GlitchTrader/glitch-crypto/pull/3",
-          "local isolated phase-B gate: strict TypeScript build and 18/18 supervised-stream tests passing",
-          "remote phase-B implementation commit: 567c5084535d7d21e89d8242bf5e117477ec9f10",
-          "remote full stacked phase-B CI: strict TypeScript build and 27/27 tests passing in GitHub Actions run 32785239711",
-          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/7 over https://github.com/GlitchTrader/glitch-crypto/pull/6",
-          "mainnet public capture run 32787342723 terminated deterministically and recorded HTTP 451 runner-eligibility rejection without relabeling it as market evidence",
-          "initial Futures Testnet run 32787924187 exposed ten false reconnects caused by Spot-style U continuity in the local USD-M book",
-          "Futures continuity correction committed at 747e29bfd6544bdb16f86c913017c1010cd15a2a; six focused order-book tests and full repository CI passed in run 32788614419",
-          "accepted Futures Testnet public capture run 32788614491: 30.037 seconds, 111 public messages, one snapshot, zero reconnects, zero stream errors, contiguous sequence, ready non-crossed replay",
-          "accepted raw evidence SHA-256 c78fd6e94b691a299d429f48ecd4e2e067cac6b55051f2ed5e5adce0adda4dbe; artifact ZIP SHA-256 77db5a72ecddd15ab1d2fd7c6f14f225e448addfc459c871b996235e6541184e",
-          "frozen deterministic observed fixture tests/fixtures/binance-usdm/observed-testnet-public.jsonl with evidence SHA-256 0b1053f5607bfc9354e4744f993f42637dada8902b5982f69319c5b279dd2ab7",
-          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/8 over https://github.com/GlitchTrader/glitch-crypto/pull/7"
-        ],
-        "notes": "Read-only Binance USD-M public Futures Testnet transport and deterministic replay are accepted as a GC-002 sub-gate. Binance is still a shadow benchmark, not an accepted production mutation venue. Mainnet eligibility, authenticated fee/precision evidence, private stream recovery, restart reconciliation, native protection, fill behavior, and the cross-venue production decision remain pending."
-      },
-      {
-        "id": "GC-003",
-        "title": "Build event replay and calibrated opportunity baselines",
-        "status": "blocked",
-        "priority": "P0",
-        "dependencies": [
-          "GC-002"
-        ],
-        "acceptance": [
-          "event-time replay includes costs, latency, nonfills, and partial fills",
-          "fill and target-before-stop models are calibrated",
-          "frozen holdout and shadow baselines exist"
-        ],
-        "evidence": [],
-        "notes": "No LLM profitability attribution before numerical and no-trade baselines exist."
-      },
-      {
-        "id": "GC-004",
-        "title": "Run shadow A/B and bounded real-money canary",
-        "status": "blocked",
-        "priority": "P0",
-        "dependencies": [
-          "GC-002",
-          "GC-003",
-          "GCHP-001"
-        ],
-        "acceptance": [
-          "hybrid policy is compared with numerical-only baseline",
-          "mutation smoke test uses bounded disposable capital",
-          "protected live outcomes reconcile fees and slippage",
-          "promotion remains reversible"
-        ],
-        "evidence": [],
-        "notes": "Tests and architecture do not imply this item is safe to begin."
+        "phase": "binance-usdm-public-testnet-accepted-private-and-mutation-gates-pending",
+        "public_testnet_transport": "accepted",
+        "production_mutation_venue": "not_accepted"
       }
-    ]
+    },
+    {
+      "id": "GC-003",
+      "title": "Build event replay and calibrated opportunity baselines",
+      "status": "blocked",
+      "priority": "P0",
+      "owner_role": "builder",
+      "acceptance": [
+        "Event-time replay must include costs, latency, nonfills, and partial fills.",
+        "Fill and target-before-stop models must be calibrated.",
+        "Frozen holdout and shadow baselines must exist."
+      ],
+      "depends_on": [
+        "GC-002"
+      ],
+      "evidence": [],
+      "blocked_reason": "GC-002 is not done; authenticated venue and execution evidence are prerequisites for factual replay semantics.",
+      "notes": "Do not attribute profitability to an LLM before numerical and no-trade baselines exist."
+    },
+    {
+      "id": "GC-004",
+      "title": "Run shadow A/B and a bounded real-money canary",
+      "status": "blocked",
+      "priority": "P0",
+      "owner_role": "builder",
+      "acceptance": [
+        "The hybrid policy must be compared with the numerical-only baseline.",
+        "Any mutation smoke test must use explicitly approved bounded disposable capital.",
+        "Protected live outcomes must reconcile fees and slippage.",
+        "Promotion must remain reversible."
+      ],
+      "depends_on": [
+        "GC-002",
+        "GC-003"
+      ],
+      "evidence": [],
+      "stop_line": "Real credentials, venue mutation, live capital, and production promotion require explicit human approval at the time of action.",
+      "blocked_reason": "GC-002 and GC-003 are not done, and the paired Hermes candidate and position workers are not accepted.",
+      "notes": "Tests and architecture do not imply that this item is safe to begin.",
+      "extensions": {
+        "external_dependencies": [
+          "glitch-crypto-hermes-profile:GCHP-002"
+        ]
+      }
+    }
+  ],
+  "extensions": {
+    "status_authority": "operations/ledger.json",
+    "delivery": "direct-main",
+    "methodology": [
+      "wayfinder",
+      "to-spec",
+      "to-tickets",
+      "github-spec-kit",
+      "architectonic-ontology",
+      "architectonic-rail"
+    ],
+    "paired_repository": "https://github.com/GlitchTrader/glitch-crypto-hermes-profile"
   }
 }

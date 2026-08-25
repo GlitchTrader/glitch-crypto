@@ -5,12 +5,19 @@
 1. `.specify/memory/constitution.md`
 2. `operations/AUTHORITY.md`
 3. `operations/ontology.md`
-4. `operations/ledger.json`
-5. the active `operations/specs/<ID>/` set
+4. `docs/agents/methodology.md`
+5. `operations/ledger.json`
+6. the active `operations/specs/<ID>/` set
 
 ## Rail
 
-`operations/ledger.json` is current work authority. Work only an active or ready item whose dependencies are satisfied. Preserve evidence and provenance when changing status.
+`operations/ledger.json` is the sole current-work authority. Use Architectonic Rail states exactly. Work only an assigned `in_progress` item or a dependency-clear `ready` item. Preserve evidence and provenance when changing status.
+
+## Agent skills
+
+- Wayfinder and `to-ticket`/`to-tickets`: read `docs/agents/issue-tracker.md`.
+- Grilling and domain modeling: read `docs/agents/domain.md` and update `operations/ontology.md` or an ADR when knowledge changes.
+- `to-spec` and GitHub Spec Kit artifacts: read `docs/agents/methodology.md` and use `.specify/templates/`.
 
 ## Boundaries
 
@@ -24,7 +31,8 @@
 
 ## Delivery
 
-- Work on a branch and open an unmerged PR.
+- Work directly on `main`; pull/fetch first, keep commits bounded, and push only after the full gate passes.
+- Do not open a PR unless the human explicitly requests one.
 - Update specs, tests, and rail in the same change when contracts move.
-- Run `npm run check` before every push.
+- Run `npm.cmd run check` before every push on Windows.
 - Do not claim live readiness or profitability from green tests.

@@ -240,7 +240,9 @@ function evidenceSha256(path: string): string {
       continue;
     }
     hash.update(`${candidate.endsWith(".1") ? "backup" : "current"}\n`);
-    hash.update(readFileSync(candidate, "utf8"));
+    // Git may materialize text fixtures with platform line endings. Hash the
+    // canonical JSONL text so one observed session has one portable identity.
+    hash.update(readFileSync(candidate, "utf8").replace(/\r\n?/g, "\n"));
   }
   return hash.digest("hex");
 }

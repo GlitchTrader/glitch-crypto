@@ -7,6 +7,7 @@ import {
   rmSync,
 } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 import {
   verifyBinancePublicEvidence,
   writeBinancePublicEvidenceManifest,
@@ -14,7 +15,7 @@ import {
 import { JsonlBinanceStreamEvidenceSink } from "../src/venue/binance-usdm/stream-evidence.js";
 
 test("public runtime evidence is accepted only when the finite session replays ready", () => {
-  const path = `/tmp/glitch-binance-public-${randomUUID()}.jsonl`;
+  const path = testEvidencePath(`glitch-binance-public-${randomUUID()}.jsonl`);
   const manifestPath = `${path}.manifest.json`;
   let now = 1_700_000_000_000;
   try {
@@ -94,7 +95,7 @@ test("public runtime evidence is accepted only when the finite session replays r
 });
 
 test("public evidence rejects sequence corruption and private records", () => {
-  const path = `/tmp/glitch-binance-public-invalid-${randomUUID()}.jsonl`;
+  const path = testEvidencePath(`glitch-binance-public-invalid-${randomUUID()}.jsonl`);
   try {
     const sink = new JsonlBinanceStreamEvidenceSink(path, {
       now: () => 1_700_000_000_000,
@@ -163,3 +164,7 @@ test("the frozen observed Testnet fixture remains checksum-bound and replay-read
   assert.deepEqual(report.replay.best_ask, ["78718.20", "0.0054"]);
   assert.equal(report.replay.gap_reason, null);
 });
+
+function testEvidencePath(filename: string): string {
+  return resolve("artifacts", "tests", filename);
+}
