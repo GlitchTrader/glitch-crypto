@@ -39,9 +39,17 @@ export function replayBinanceStreamEvidence(
   for (const record of records) {
     if (
       record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v1" &&
-      record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v2"
+      record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v2" &&
+      record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v3"
     ) {
       throw new Error("unsupported Binance stream evidence schema");
+    }
+    if (
+      record.channel === "public-depth" &&
+      record.kind === "raw_snapshot"
+    ) {
+      ignored += 1;
+      continue;
     }
     if (record.channel === "public-depth" && record.kind === "transition") {
       const transition = objectValue(record.payload, "public transition evidence");
@@ -131,7 +139,8 @@ function parseRecord(value: unknown, line: number): BinanceStreamEvidenceRecord 
   const record = objectValue(value, `evidence line ${line}`);
   if (
     record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v1" &&
-    record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v2"
+    record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v2" &&
+    record.schema_version !== "glitch.crypto.binance-usdm-stream-evidence.v3"
   ) {
     throw new Error(`unsupported evidence schema at line ${line}`);
   }
@@ -147,13 +156,72 @@ function parseRecord(value: unknown, line: number): BinanceStreamEvidenceRecord 
   if (!new Set(["public-depth", "public-market", "private-user", "supervisor"]).has(String(record.channel))) {
     throw new Error(`invalid evidence channel at line ${line}`);
   }
-  if (!new Set(["message", "snapshot", "reconciliation", "transition", "keepalive", "error"]).has(String(record.kind))) {
+  if (!new Set(["message", "raw_snapshot", "snapshot", "reconciliation", "transition", "keepalive", "error"]).has(String(record.kind))) {
     throw new Error(`invalid evidence kind at line ${line}`);
   }
   if (record.schema_version === "glitch.crypto.binance-usdm-stream-evidence.v2") {
     validateRawFrameRecord(record, line);
+  } else if (
+    record.schema_version === "glitch.crypto.binance-usdm-stream-evidence.v3"
+  ) {
+    validateRawSnapshotRecord(record, line);
+  } else if (record.kind === "raw_snapshot") {
+    throw new Error(`invalid version-1 evidence kind at line ${line}`);
   }
   return record as unknown as BinanceStreamEvidenceRecord;
+}
+
+function validateRawSnapshotRecord(
+  record: Record<string, unknown>,
+  line: number,
+): void {
+  if (
+    record.channel !== "public-depth" ||
+    record.kind !== "raw_snapshot" ||
+    record.payload !== null
+  ) {
+    throw new Error(`invalid version-3 evidence authority at line ${line}`);
+  }
+  const provenance = objectValue(
+    record.provenance,
+    `version-3 provenance at line ${line}`,
+  );
+  if (
+    provenance.venue !== "BINANCE_USDM" ||
+    provenance.instrument === undefined ||
+    typeof provenance.instrument !== "string" ||
+    !/^[A-Z0-9]{5,24}$/.test(provenance.instrument) ||
+    provenance.channel !== "public-depth" ||
+    provenance.transport !== "REST" ||
+    provenance.method !== "GET" ||
+    provenance.path !== "/fapi/v1/depth" ||
+    typeof provenance.origin !== "string" ||
+    typeof provenance.query !== "string" ||
+    provenance.query.length === 0 ||
+    !Number.isSafeInteger(provenance.http_status) ||
+    (provenance.http_status as number) < 200 ||
+    (provenance.http_status as number) > 299 ||
+    !Number.isSafeInteger(provenance.local_receive_timestamp_ms) ||
+    (provenance.local_receive_timestamp_ms as number) <= 0 ||
+    typeof provenance.monotonic_receive_ns !== "string" ||
+    !/^[1-9]\d*$/.test(provenance.monotonic_receive_ns) ||
+    provenance.normalization_version !==
+      "binance-usdm-depth-snapshot-inspection.v1" ||
+    typeof provenance.raw_response !== "string" ||
+    provenance.raw_response.length === 0 ||
+    !/^[a-f0-9]{64}$/.test(String(provenance.raw_response_sha256))
+  ) {
+    throw new Error(`invalid version-3 provenance at line ${line}`);
+  }
+  let origin: URL;
+  try {
+    origin = new URL(provenance.origin);
+  } catch {
+    throw new Error(`invalid version-3 origin at line ${line}`);
+  }
+  if (origin.origin !== provenance.origin || origin.pathname !== "/") {
+    throw new Error(`invalid version-3 origin at line ${line}`);
+  }
 }
 
 function validateRawFrameRecord(

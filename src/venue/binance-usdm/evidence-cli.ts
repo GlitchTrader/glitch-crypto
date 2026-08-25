@@ -78,7 +78,8 @@ if (command === "capture-public") {
   }, null, 2));
   const exitCode =
     report.accepted_for_public_replay &&
-    report.accepted_for_depth_frame_replay
+    report.accepted_for_depth_frame_replay &&
+    report.accepted_for_depth_session_replay
       ? 0
       : 1;
   process.exitCode = exitCode;
@@ -90,7 +91,8 @@ if (command === "capture-public") {
   console.log(JSON.stringify(report, null, 2));
   if (
     !report.accepted_for_public_replay ||
-    !report.accepted_for_depth_frame_replay
+    !report.accepted_for_depth_frame_replay ||
+    !report.accepted_for_depth_session_replay
   ) {
     process.exitCode = 1;
   }

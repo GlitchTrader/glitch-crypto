@@ -145,6 +145,28 @@ class FakeRest implements BinanceUsdmStreamRestClient {
   }
 }
 
+class FakeRawRest extends FakeRest {
+  readonly rawDepth = new Deferred<{
+    method: "GET";
+    origin: string;
+    path: string;
+    query: string;
+    http_status: number;
+    local_receive_timestamp_ms: number;
+    monotonic_receive_ns: string;
+    raw_response: string;
+  }>();
+
+  publicGetRaw(
+    path: string,
+    parameters: Readonly<Record<string, unknown>> = {},
+  ) {
+    assert.equal(path, "/fapi/v1/depth");
+    assert.deepEqual(parameters, { symbol: "BTCUSDT", limit: 1_000 });
+    return this.rawDepth.promise;
+  }
+}
+
 class FakeListenKeySession implements BinanceUsdmListenKeySession {
   createCount = 0;
   keepAliveCount = 0;
@@ -361,6 +383,123 @@ test("malformed depth identity is retained before fail-closed reconnect", async 
   }
   assert.equal(rawRecord.provenance.provider_sequence.event_type, "notDepthUpdate");
   assert.ok(evidence.records.indexOf(rawRecord) < evidence.records.indexOf(errorRecord));
+  assert.equal(supervisor.status().public.state, "backoff");
+  await supervisor.stop();
+});
+
+test("exact REST depth response is retained before its parsed snapshot", async () => {
+  const rest = new FakeRawRest();
+  const sockets = new FakeSocketFactory();
+  const scheduler = new FakeScheduler();
+  const evidence = new InMemoryBinanceStreamEvidenceSink();
+  const supervisor = new BinanceUsdmStreamSupervisor(rest, null, {
+    socketFactory: sockets,
+    scheduler,
+    evidence,
+    reconnectBaseMs: 1,
+    now: () => 1_700_000_000_100,
+    publicMonotonicClock: () => 1_000_000n,
+    publicConnectionIdFactory: () => "depth-connection-snapshot-0001",
+  });
+
+  await supervisor.start(false);
+  const socket = sockets.sockets[0];
+  if (!socket) {
+    throw new Error("public socket was not created");
+  }
+  socket.open();
+  socket.message({
+    e: "depthUpdate",
+    E: 1_700_000_000_101,
+    T: 1_700_000_000_100,
+    s: "BTCUSDT",
+    U: 101,
+    u: 101,
+    pu: 100,
+    b: [["60000", "2"]],
+    a: [],
+  });
+  const exact = '{ "lastUpdateId":100,"E":1700000000050,"T":1700000000040,"bids":[["60000","1"]],"asks":[["60001","1"]] }';
+  rest.rawDepth.resolve({
+    method: "GET",
+    origin: "https://demo-fapi.binance.com",
+    path: "/fapi/v1/depth",
+    query: "limit=1000&symbol=BTCUSDT",
+    http_status: 200,
+    local_receive_timestamp_ms: 1_700_000_000_500,
+    monotonic_receive_ns: "2000000",
+    raw_response: exact,
+  });
+  await flushAsync();
+
+  const rawRecord = evidence.records.find(
+    (record) =>
+      record.schema_version ===
+      "glitch.crypto.binance-usdm-stream-evidence.v3",
+  );
+  const parsedRecord = evidence.records.find(
+    (record) => record.channel === "public-depth" && record.kind === "snapshot",
+  );
+  if (!rawRecord || !parsedRecord) {
+    throw new Error("raw and parsed snapshot evidence were not recorded");
+  }
+  assert.equal(rawRecord.provenance.raw_response, exact);
+  assert.ok(evidence.records.indexOf(rawRecord) < evidence.records.indexOf(parsedRecord));
+  assert.deepEqual(parsedRecord.payload, {
+    lastUpdateId: 100,
+    bids: [["60000", "1"]],
+    asks: [["60001", "1"]],
+  });
+  assert.equal(supervisor.status().public.state, "running");
+  assert.deepEqual(supervisor.status().public.order_book.best_bid, ["60000", "2"]);
+  await supervisor.stop();
+});
+
+test("malformed REST depth response is retained before snapshot backoff", async () => {
+  const rest = new FakeRawRest();
+  const sockets = new FakeSocketFactory();
+  const scheduler = new FakeScheduler();
+  const evidence = new InMemoryBinanceStreamEvidenceSink();
+  const supervisor = new BinanceUsdmStreamSupervisor(rest, null, {
+    socketFactory: sockets,
+    scheduler,
+    evidence,
+    reconnectBaseMs: 1,
+  });
+
+  await supervisor.start(false);
+  const socket = sockets.sockets[0];
+  if (!socket) {
+    throw new Error("public socket was not created");
+  }
+  socket.open();
+  rest.rawDepth.resolve({
+    method: "GET",
+    origin: "https://demo-fapi.binance.com",
+    path: "/fapi/v1/depth",
+    query: "limit=1000&symbol=BTCUSDT",
+    http_status: 200,
+    local_receive_timestamp_ms: 1_700_000_000_500,
+    monotonic_receive_ns: "2000000",
+    raw_response: "{invalid-json",
+  });
+  await flushAsync();
+
+  const rawRecord = evidence.records.find(
+    (record) =>
+      record.schema_version ===
+      "glitch.crypto.binance-usdm-stream-evidence.v3",
+  );
+  const errorRecord = evidence.records.find((record) => record.kind === "error");
+  if (!rawRecord || !errorRecord) {
+    throw new Error("malformed raw snapshot evidence was not recorded");
+  }
+  assert.equal(rawRecord.provenance.raw_response, "{invalid-json");
+  assert.ok(evidence.records.indexOf(rawRecord) < evidence.records.indexOf(errorRecord));
+  assert.equal(
+    evidence.records.some((record) => record.kind === "snapshot"),
+    false,
+  );
   assert.equal(supervisor.status().public.state, "backoff");
   await supervisor.stop();
 });

@@ -14,17 +14,19 @@ The capture command:
 
 - starts only the read-only public depth lane;
 - records supervisor start/stop, stream transitions, exact diff-depth WebSocket
-  frames, and the parsed REST snapshot;
+  frames, the exact successful REST depth response, and its parsed snapshot;
 - binds each version-2 depth message to venue, instrument, channel, connection,
   exchange time, wall-clock and monotonic receive time, `E`/`T`/`U`/`u`/`pu`
   provider identity, inspection version, and the raw-frame SHA-256;
+- writes the version-3 REST response text and its request identity, receive
+  clocks, inspection version, and SHA-256 before JSON or snapshot parsing;
 - runs for 5-300 seconds and terminates deterministically;
 - refuses to overwrite an existing evidence file;
 - writes a SHA-256-bound manifest beside the JSONL evidence; its digest uses
   canonical LF JSONL text so the same frozen session has one identity on every
   supported checkout platform;
-- exits nonzero unless the frozen session passes both the parsed public replay
-  contract and the exact depth-frame replay contract;
+- exits nonzero unless the frozen session passes parsed public replay, exact
+  depth-frame replay, and exact depth-session replay;
 - never reads an API key and has no mutation authority.
 
 `GLITCH_BINANCE_USDM_EVIDENCE_MIN_MESSAGES` defaults to 10. Runtime acceptance jobs set a higher threshold appropriate to the capture duration.
@@ -44,7 +46,9 @@ requires every depth message to be version 2 with verified raw integrity,
 payload equivalence, provider identity, connection attribution, strict receive
 ordering, and a lifecycle without errors or reconnect backoff. Historical
 version-1 fixtures remain readable but are explicitly legacy for this stronger
-claim.
+claim. The strongest depth-session claim also requires one version-3 raw REST
+snapshot paired in record order to each parsed snapshot, with matching raw hash,
+normalized book payload, update ID, request identity, and receive ordering.
 
 ## Observed runs
 
@@ -93,6 +97,27 @@ The frozen JSONL and manifest are
 `operations/evidence/GC-002/binance-testnet-depth-provenance-2026-08-25.jsonl`
 and its adjacent `.manifest.json`.
 
+### Accepted exact Testnet depth session
+
+The later 2026-08-25 credential-free capture closed the bootstrap boundary by
+retaining the successful REST response before parsing:
+
+- duration: 8.065 seconds;
+- records: 42;
+- public depth messages: 34 version-2 frames;
+- REST bootstrap: 1 version-3 raw response paired to 1 parsed snapshot;
+- connections: 1;
+- reconnects and stream errors: 0;
+- frame and snapshot hash, payload, identity, attribution, pairing, and receive
+  faults: 0;
+- replay result: ready BTCUSDT book, update ID `410750276919`;
+- canonical evidence SHA-256:
+  `b6063706916aa5b9ec2784a9b0bb4b4359d47be03f9a6ff2527c89c4522afb07`.
+
+The frozen JSONL and manifest are
+`operations/evidence/GC-002/binance-testnet-depth-session-provenance-2026-08-25.jsonl`
+and its adjacent `.manifest.json`.
+
 ## Workflow policy
 
 `.github/workflows/binance-public-evidence.yml` is manual-only through `workflow_dispatch`. Live exchange availability is not a mandatory CI dependency. Mandatory CI uses the frozen fixture and deterministic verifier.
@@ -100,8 +125,8 @@ and its adjacent `.manifest.json`.
 ## Authority boundary
 
 This evidence accepts only bounded public Futures Testnet transport, parsed
-snapshot/delta replay, and exact diff-depth WebSocket frame provenance. It does
-not claim byte-exact REST snapshot provenance, production eligibility, mainnet
-market quality, authenticated account access, fee tier, precision discovery,
-private-stream recovery, native protection, fill behavior, mutation safety, or
-profitability.
+snapshot/delta replay, exact diff-depth WebSocket frames, and the exact
+successful public REST bootstrap response. It does not establish production
+eligibility, mainnet market quality, authenticated account access, fee tier,
+precision discovery, private-stream recovery, native protection, fill behavior,
+mutation safety, or profitability.

@@ -1,4 +1,7 @@
-import type { BinanceUsdmAccountSnapshot } from "./shadow-client.js";
+import type {
+  BinanceUsdmAccountSnapshot,
+  BinanceUsdmPublicRawResponse,
+} from "./shadow-client.js";
 
 export type BinanceStreamLaneState =
   | "stopped"
@@ -14,6 +17,12 @@ export interface BinanceUsdmStreamRestClient {
       Record<string, string | number | bigint | boolean | null | undefined>
     >,
   ): Promise<unknown>;
+  publicGetRaw?(
+    path: string,
+    parameters?: Readonly<
+      Record<string, string | number | bigint | boolean | null | undefined>
+    >,
+  ): Promise<BinanceUsdmPublicRawResponse>;
   accountSnapshot(): Promise<BinanceUsdmAccountSnapshot>;
 }
 

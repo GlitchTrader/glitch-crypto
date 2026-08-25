@@ -92,3 +92,34 @@ test("the signed client rejects every endpoint outside the explicit read-only al
   });
   await assert.rejects(() => client.signedGet("/fapi/v1/order", { symbol: "BTCUSDT" }));
 });
+
+test("approved public raw responses preserve exact text and request provenance", async () => {
+  const exact = '{ "lastUpdateId":100,"bids":[["60000","1"]],"asks":[["60001","1"]] }';
+  const client = new BinanceUsdmShadowClient({
+    baseUrl: "https://demo-fapi.binance.com",
+    symbol: "BTCUSDT",
+    now: () => 1_700_000_000_500,
+    monotonicClock: () => 2_000_000n,
+    fetchImpl: (async () => new Response(exact, {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })) as typeof fetch,
+  });
+
+  const raw = await client.publicGetRaw("/fapi/v1/depth", {
+    symbol: "BTCUSDT",
+    limit: 1_000,
+  });
+  assert.equal(raw.raw_response, exact);
+  assert.equal(raw.method, "GET");
+  assert.equal(raw.origin, "https://demo-fapi.binance.com");
+  assert.equal(raw.path, "/fapi/v1/depth");
+  assert.equal(raw.query, "limit=1000&symbol=BTCUSDT");
+  assert.equal(raw.http_status, 200);
+  assert.equal(raw.local_receive_timestamp_ms, 1_700_000_000_500);
+  assert.equal(raw.monotonic_receive_ns, "2000000");
+  await assert.rejects(
+    () => client.publicGetRaw("/fapi/v1/order", { symbol: "BTCUSDT" }),
+    /not approved/,
+  );
+});

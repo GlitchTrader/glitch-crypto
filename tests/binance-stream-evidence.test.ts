@@ -111,3 +111,53 @@ test("exact raw market frames reject configured credentials instead of rewriting
   ), /configured credential/);
   assert.equal(sink.records.length, 0);
 });
+
+test("exact raw depth snapshots use version 3 and reject configured credentials", () => {
+  const sink = new InMemoryBinanceStreamEvidenceSink({
+    forbiddenValues: ["credential-value"],
+    now: () => 1_700_000_000_000,
+  });
+  const provenance = {
+    venue: "BINANCE_USDM" as const,
+    instrument: "BTCUSDT",
+    channel: "public-depth" as const,
+    transport: "REST" as const,
+    method: "GET" as const,
+    origin: "https://demo-fapi.binance.com",
+    path: "/fapi/v1/depth" as const,
+    query: "limit=1000&symbol=BTCUSDT",
+    http_status: 200,
+    local_receive_timestamp_ms: 1_700_000_000_500,
+    monotonic_receive_ns: "2000000",
+    normalization_version:
+      "binance-usdm-depth-snapshot-inspection.v1" as const,
+    raw_response: '{"lastUpdateId":100,"bids":[],"asks":[]}',
+  };
+  const record = sink.record(
+    "public-depth",
+    "raw_snapshot",
+    null,
+    provenance,
+  );
+  assert.equal(
+    record.schema_version,
+    "glitch.crypto.binance-usdm-stream-evidence.v3",
+  );
+  if (
+    record.schema_version !==
+    "glitch.crypto.binance-usdm-stream-evidence.v3"
+  ) {
+    throw new Error("expected version-3 raw snapshot evidence");
+  }
+  assert.equal(record.provenance.raw_response, provenance.raw_response);
+  assert.equal(record.provenance.raw_response_sha256.length, 64);
+  assert.throws(
+    () => sink.record(
+      "public-depth",
+      "raw_snapshot",
+      null,
+      { ...provenance, raw_response: '{"token":"credential-value"}' },
+    ),
+    /configured credential/,
+  );
+});

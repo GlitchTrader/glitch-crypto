@@ -9,7 +9,9 @@ import {
 import { dirname } from "node:path";
 import {
   parseBinanceDepthDelta,
+  parseBinanceDepthSnapshot,
   type BinanceDepthDelta,
+  type BinanceDepthSnapshot,
 } from "./order-book.js";
 import { verifyBinanceRawFrame } from "./raw-frame-evidence.js";
 import {
@@ -19,11 +21,13 @@ import {
 import type {
   BinanceStreamEvidenceRecord,
   BinanceStreamEvidenceRecordV2,
+  BinanceStreamEvidenceRecordV3,
 } from "./stream-evidence.js";
 
 export interface BinancePublicEvidenceCounts {
   supervisor_transitions: number;
   public_transitions: number;
+  public_raw_snapshots: number;
   public_snapshots: number;
   public_messages: number;
   public_errors: number;
@@ -33,13 +37,15 @@ export interface BinancePublicEvidenceCounts {
 }
 
 export interface BinancePublicEvidenceReport {
-  schema_version: "glitch.crypto.binance-usdm-public-evidence-report.v2";
+  schema_version: "glitch.crypto.binance-usdm-public-evidence-report.v3";
   evidence_sha256: string;
   mutation_authority: false;
   accepted_for_public_replay: boolean;
   accepted_for_depth_frame_replay: boolean;
+  accepted_for_depth_session_replay: boolean;
   rejection_reasons: string[];
   depth_frame_rejection_reasons: string[];
+  depth_session_rejection_reasons: string[];
   warnings: string[];
   session_ids: string[];
   record_count: number;
@@ -60,6 +66,18 @@ export interface BinancePublicEvidenceReport {
     raw_payload_mismatches: number;
     provider_identity_mismatches: number;
     unattributed_connection_records: number;
+    non_monotonic_receive_times: number;
+  };
+  snapshot_provenance: {
+    raw_snapshot_records: number;
+    paired_snapshot_records: number;
+    parsed_snapshots_without_raw: number;
+    raw_snapshots_without_parsed: number;
+    raw_hash_mismatches: number;
+    raw_response_parse_failures: number;
+    normalized_payload_mismatches: number;
+    update_identity_mismatches: number;
+    request_identity_mismatches: number;
     non_monotonic_receive_times: number;
   };
   replay: {
@@ -94,6 +112,7 @@ export function verifyBinancePublicEvidence(
   const counts: BinancePublicEvidenceCounts = {
     supervisor_transitions: 0,
     public_transitions: 0,
+    public_raw_snapshots: 0,
     public_snapshots: 0,
     public_messages: 0,
     public_errors: 0,
@@ -117,6 +136,17 @@ export function verifyBinancePublicEvidence(
   let nonMonotonicReceiveTimes = 0;
   let lastMonotonicReceiveNs: bigint | null = null;
   const connectionIds = new Set<string>();
+  const pendingRawSnapshots: Array<{
+    normalized: BinanceDepthSnapshot | null;
+  }> = [];
+  let pairedSnapshotRecords = 0;
+  let parsedSnapshotsWithoutRaw = 0;
+  let snapshotHashMismatches = 0;
+  let rawResponseParseFailures = 0;
+  let normalizedSnapshotPayloadMismatches = 0;
+  let snapshotUpdateIdentityMismatches = 0;
+  let snapshotRequestIdentityMismatches = 0;
+  let snapshotNonMonotonicReceiveTimes = 0;
 
   for (const record of records) {
     if (record.channel === "supervisor" && record.kind === "transition") {
@@ -134,7 +164,36 @@ export function verifyBinancePublicEvidence(
       continue;
     }
     if (record.channel === "public-depth") {
-      if (record.kind === "transition") {
+      if (
+        record.schema_version ===
+          "glitch.crypto.binance-usdm-stream-evidence.v3" &&
+        record.kind === "raw_snapshot"
+      ) {
+        counts.public_raw_snapshots += 1;
+        const provenance = record.provenance;
+        const hashMatches = createHash("sha256")
+          .update(provenance.raw_response)
+          .digest("hex") === provenance.raw_response_sha256;
+        snapshotHashMismatches += Number(!hashMatches);
+        snapshotRequestIdentityMismatches += Number(
+          !snapshotRequestIdentityMatches(record, expectedSymbol),
+        );
+        const monotonic = BigInt(provenance.monotonic_receive_ns);
+        const receiveTimeMonotonic =
+          lastMonotonicReceiveNs === null ||
+          monotonic > lastMonotonicReceiveNs;
+        snapshotNonMonotonicReceiveTimes += Number(!receiveTimeMonotonic);
+        lastMonotonicReceiveNs = monotonic;
+        let normalized: BinanceDepthSnapshot | null = null;
+        try {
+          normalized = parseBinanceDepthSnapshot(
+            JSON.parse(provenance.raw_response) as unknown,
+          );
+        } catch {
+          rawResponseParseFailures += 1;
+        }
+        pendingRawSnapshots.push({ normalized });
+      } else if (record.kind === "transition") {
         counts.public_transitions += 1;
         const payload = objectValue(record.payload);
         if (payload.state === "running") {
@@ -148,6 +207,30 @@ export function verifyBinancePublicEvidence(
         }
       } else if (record.kind === "snapshot") {
         counts.public_snapshots += 1;
+        const raw = pendingRawSnapshots.shift();
+        if (raw === undefined) {
+          parsedSnapshotsWithoutRaw += 1;
+        } else {
+          pairedSnapshotRecords += 1;
+          try {
+            const parsed = parseBinanceDepthSnapshot(record.payload);
+            if (
+              raw.normalized === null ||
+              JSON.stringify(raw.normalized) !== JSON.stringify(parsed)
+            ) {
+              normalizedSnapshotPayloadMismatches += 1;
+            }
+            if (
+              raw.normalized !== null &&
+              raw.normalized.lastUpdateId !== parsed.lastUpdateId
+            ) {
+              snapshotUpdateIdentityMismatches += 1;
+            }
+          } catch {
+            normalizedSnapshotPayloadMismatches += 1;
+            snapshotUpdateIdentityMismatches += 1;
+          }
+        }
       } else if (record.kind === "message") {
         counts.public_messages += 1;
         if (
@@ -240,28 +323,6 @@ export function verifyBinancePublicEvidence(
   if (counts.public_errors > 0) {
     warnings.push(`public_errors_observed:${counts.public_errors}`);
   }
-  if (rawHashMismatches > 0) {
-    rejectionReasons.push(`raw_frame_hash_mismatches:${rawHashMismatches}`);
-  }
-  if (rawPayloadMismatches > 0) {
-    rejectionReasons.push(`raw_frame_payload_mismatches:${rawPayloadMismatches}`);
-  }
-  if (providerIdentityMismatches > 0) {
-    rejectionReasons.push(
-      `depth_provider_identity_mismatches:${providerIdentityMismatches}`,
-    );
-  }
-  if (unattributedConnectionRecords > 0) {
-    rejectionReasons.push(
-      `unattributed_connection_records:${unattributedConnectionRecords}`,
-    );
-  }
-  if (nonMonotonicReceiveTimes > 0) {
-    rejectionReasons.push(
-      `non_monotonic_receive_times:${nonMonotonicReceiveTimes}`,
-    );
-  }
-
   let replay: ReturnType<typeof replayBinanceStreamEvidence> | null = null;
   try {
     replay = replayBinanceStreamEvidence(records);
@@ -313,25 +374,79 @@ export function verifyBinancePublicEvidence(
       `public_backoff_observed:${counts.public_backoff_transitions}`,
     );
   }
-  depthFrameRejectionReasons.push(
-    ...rejectionReasons.filter((reason) =>
-      reason.startsWith("raw_frame_") ||
-      reason.startsWith("depth_provider_") ||
-      reason.startsWith("unattributed_connection_") ||
-      reason.startsWith("non_monotonic_receive_"),
-    ),
-  );
+  if (rawHashMismatches > 0) {
+    depthFrameRejectionReasons.push(
+      `raw_frame_hash_mismatches:${rawHashMismatches}`,
+    );
+  }
+  if (rawPayloadMismatches > 0) {
+    depthFrameRejectionReasons.push(
+      `raw_frame_payload_mismatches:${rawPayloadMismatches}`,
+    );
+  }
+  if (providerIdentityMismatches > 0) {
+    depthFrameRejectionReasons.push(
+      `depth_provider_identity_mismatches:${providerIdentityMismatches}`,
+    );
+  }
+  if (unattributedConnectionRecords > 0) {
+    depthFrameRejectionReasons.push(
+      `unattributed_connection_records:${unattributedConnectionRecords}`,
+    );
+  }
+  if (nonMonotonicReceiveTimes > 0) {
+    depthFrameRejectionReasons.push(
+      `non_monotonic_receive_times:${nonMonotonicReceiveTimes}`,
+    );
+  }
+  const acceptedForDepthFrameReplay =
+    acceptedForPublicReplay && depthFrameRejectionReasons.length === 0;
+  const rawSnapshotsWithoutParsed = pendingRawSnapshots.length;
+  const depthSessionRejectionReasons: string[] = [];
+  if (!acceptedForDepthFrameReplay) {
+    depthSessionRejectionReasons.push("depth_frame_replay_not_accepted");
+  }
+  if (counts.public_raw_snapshots === 0) {
+    depthSessionRejectionReasons.push("exact_depth_snapshot_missing");
+  }
+  if (parsedSnapshotsWithoutRaw > 0) {
+    depthSessionRejectionReasons.push(
+      `parsed_snapshots_without_raw:${parsedSnapshotsWithoutRaw}`,
+    );
+  }
+  if (rawSnapshotsWithoutParsed > 0) {
+    depthSessionRejectionReasons.push(
+      `raw_snapshots_without_parsed:${rawSnapshotsWithoutParsed}`,
+    );
+  }
+  for (const [count, reason] of [
+    [snapshotHashMismatches, "raw_snapshot_hash_mismatches"],
+    [rawResponseParseFailures, "raw_snapshot_parse_failures"],
+    [normalizedSnapshotPayloadMismatches, "snapshot_payload_mismatches"],
+    [snapshotUpdateIdentityMismatches, "snapshot_update_identity_mismatches"],
+    [snapshotRequestIdentityMismatches, "snapshot_request_identity_mismatches"],
+    [snapshotNonMonotonicReceiveTimes, "snapshot_non_monotonic_receive_times"],
+  ] as const) {
+    if (count > 0) {
+      depthSessionRejectionReasons.push(`${reason}:${count}`);
+    }
+  }
 
   return {
-    schema_version: "glitch.crypto.binance-usdm-public-evidence-report.v2",
+    schema_version: "glitch.crypto.binance-usdm-public-evidence-report.v3",
     evidence_sha256: evidenceSha256(evidencePath),
     mutation_authority: false,
     accepted_for_public_replay: acceptedForPublicReplay,
-    accepted_for_depth_frame_replay:
-      acceptedForPublicReplay && depthFrameRejectionReasons.length === 0,
+    accepted_for_depth_frame_replay: acceptedForDepthFrameReplay,
+    accepted_for_depth_session_replay:
+      acceptedForDepthFrameReplay &&
+      depthSessionRejectionReasons.length === 0,
     rejection_reasons: rejectionReasons,
     depth_frame_rejection_reasons: [
       ...new Set(depthFrameRejectionReasons),
+    ],
+    depth_session_rejection_reasons: [
+      ...new Set(depthSessionRejectionReasons),
     ],
     warnings,
     session_ids: sessionIds,
@@ -354,6 +469,18 @@ export function verifyBinancePublicEvidence(
       provider_identity_mismatches: providerIdentityMismatches,
       unattributed_connection_records: unattributedConnectionRecords,
       non_monotonic_receive_times: nonMonotonicReceiveTimes,
+    },
+    snapshot_provenance: {
+      raw_snapshot_records: counts.public_raw_snapshots,
+      paired_snapshot_records: pairedSnapshotRecords,
+      parsed_snapshots_without_raw: parsedSnapshotsWithoutRaw,
+      raw_snapshots_without_parsed: rawSnapshotsWithoutParsed,
+      raw_hash_mismatches: snapshotHashMismatches,
+      raw_response_parse_failures: rawResponseParseFailures,
+      normalized_payload_mismatches: normalizedSnapshotPayloadMismatches,
+      update_identity_mismatches: snapshotUpdateIdentityMismatches,
+      request_identity_mismatches: snapshotRequestIdentityMismatches,
+      non_monotonic_receive_times: snapshotNonMonotonicReceiveTimes,
     },
     replay: {
       processed_records: replay?.processed_records ?? 0,
@@ -458,5 +585,57 @@ function depthIdentityMatches(
     sequence.first_trade_id === null &&
     sequence.last_trade_id === null &&
     sequence.trade_time_ms === null
+  );
+}
+
+function snapshotRequestIdentityMatches(
+  record: BinanceStreamEvidenceRecordV3,
+  expectedSymbol: string | null,
+): boolean {
+  const provenance = record.provenance;
+  if (expectedSymbol === null || provenance.instrument !== expectedSymbol) {
+    return false;
+  }
+  let origin: URL;
+  try {
+    origin = new URL(provenance.origin);
+  } catch {
+    return false;
+  }
+  const loopback =
+    origin.hostname === "127.0.0.1" ||
+    origin.hostname === "::1" ||
+    origin.hostname === "[::1]";
+  if (
+    origin.origin !== provenance.origin ||
+    origin.username ||
+    origin.password ||
+    origin.pathname !== "/" ||
+    (origin.protocol !== "https:" && !(loopback && origin.protocol === "http:"))
+  ) {
+    return false;
+  }
+  const entries: Array<[string, string]> = [];
+  new URLSearchParams(provenance.query).forEach((value, key) => {
+    entries.push([key, value]);
+  });
+  if (
+    entries.length !== 2 ||
+    entries[0]?.[0] !== "limit" ||
+    entries[1]?.[0] !== "symbol" ||
+    entries[1]?.[1] !== expectedSymbol
+  ) {
+    return false;
+  }
+  const limit = Number(entries[0]?.[1]);
+  return (
+    provenance.method === "GET" &&
+    provenance.path === "/fapi/v1/depth" &&
+    provenance.http_status === 200 &&
+    Number.isSafeInteger(limit) &&
+    limit >= 5 &&
+    limit <= 1_000 &&
+    provenance.query ===
+      `limit=${limit}&symbol=${encodeURIComponent(expectedSymbol)}`
   );
 }

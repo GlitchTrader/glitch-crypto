@@ -12,8 +12,9 @@ npm run binance:stream -- public
 The supervisor retains each exact diff-depth WebSocket frame and receive
 provenance before strict identity parsing, buffers valid deltas, obtains a REST
 snapshot, establishes sequence continuity, and reconnects from a new snapshot
-after any gap or malformed identity. The snapshot is retained as parsed
-evidence; this path does not claim its original HTTP response bytes.
+after any gap or malformed identity. For clients supporting exact public REST
+capture, the successful response text and request/receive provenance are
+retained before JSON parsing, followed by a separate normalized snapshot record.
 
 ## Public plus private account observation
 
@@ -56,8 +57,9 @@ environment value.
 The writer maintains one active file and one `.1` backup. Every record has a
 session ID and sequence. Public depth WebSocket messages use version 2 with the
 exact frame, SHA-256, connection ID, dual receive clocks, provider sequence,
-and inspection version. Credentials, signatures, tokens, sensitive-key fields,
-and active listen keys are redacted.
+and inspection version. Exact REST depth bootstrap responses use version 3 and
+remain distinct from their version-1 parsed snapshot. Credentials, signatures,
+tokens, sensitive-key fields, and active listen keys are redacted.
 
 ## Replay
 

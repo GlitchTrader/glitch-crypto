@@ -30,6 +30,18 @@ export interface BinanceUsdmShadowClientConfig {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
   now?: () => number;
+  monotonicClock?: () => bigint;
+}
+
+export interface BinanceUsdmPublicRawResponse {
+  method: "GET";
+  origin: string;
+  path: string;
+  query: string;
+  http_status: number;
+  local_receive_timestamp_ms: number;
+  monotonic_receive_ns: string;
+  raw_response: string;
 }
 
 export interface BinanceUsdmPublicSnapshot {
@@ -73,6 +85,7 @@ export class BinanceUsdmShadowClient {
   private readonly timeoutMs: number;
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => number;
+  private readonly monotonicClock: () => bigint;
   private clockOffsetMs = 0;
 
   constructor(config: BinanceUsdmShadowClientConfig = {}) {
@@ -93,6 +106,8 @@ export class BinanceUsdmShadowClient {
     }
     this.fetchImpl = config.fetchImpl ?? fetch;
     this.now = config.now ?? Date.now;
+    this.monotonicClock = config.monotonicClock ?? (() =>
+      BigInt(Math.max(1, Math.trunc(performance.now() * 1_000_000))));
   }
 
   credentialsConfigured(): boolean {
@@ -164,6 +179,16 @@ export class BinanceUsdmShadowClient {
     return this.getJson(path, query, {});
   }
 
+  async publicGetRaw(
+    path: string,
+    parameters: Readonly<Record<string, BinanceQueryValue>> = {},
+  ): Promise<BinanceUsdmPublicRawResponse> {
+    if (!PUBLIC_GET_ENDPOINTS.has(path)) {
+      throw new Error(`Binance public endpoint is not approved for shadow use: ${path}`);
+    }
+    return this.getRaw(path, encodeBinanceQuery(parameters), {});
+  }
+
   async signedGet(
     path: string,
     parameters: Readonly<Record<string, BinanceQueryValue>> = {},
@@ -188,6 +213,14 @@ export class BinanceUsdmShadowClient {
     query: string,
     headers: Record<string, string>,
   ): Promise<unknown> {
+    return parseJson((await this.getRaw(path, query, headers)).raw_response);
+  }
+
+  private async getRaw(
+    path: string,
+    query: string,
+    headers: Record<string, string>,
+  ): Promise<BinanceUsdmPublicRawResponse> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
@@ -198,12 +231,23 @@ export class BinanceUsdmShadowClient {
         signal: controller.signal,
       });
       const text = await response.text();
-      const payload = parseJson(text);
       if (!response.ok) {
+        const payload = parseJson(text);
         const safe = redactProviderEvidence(payload, [this.apiKey, this.apiSecret]);
         throw new Error(`Binance read-only request failed with HTTP ${response.status}: ${JSON.stringify(safe)}`);
       }
-      return payload;
+      const raw: BinanceUsdmPublicRawResponse = {
+        method: "GET",
+        origin: new URL(this.baseUrl).origin,
+        path,
+        query,
+        http_status: response.status,
+        local_receive_timestamp_ms: this.now(),
+        monotonic_receive_ns: this.monotonicClock().toString(),
+        raw_response: text,
+      };
+      assertProviderEvidenceIsSecretFree(raw, [this.apiKey, this.apiSecret]);
+      return raw;
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         throw new Error("Binance read-only request timed out");

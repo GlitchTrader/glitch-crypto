@@ -21,6 +21,7 @@ export type BinanceStreamEvidenceChannel =
 
 export type BinanceStreamEvidenceKind =
   | "message"
+  | "raw_snapshot"
   | "snapshot"
   | "reconciliation"
   | "transition"
@@ -93,6 +94,27 @@ export type BinanceRawFrameProvenance = BinanceRawFrameInput & {
 
 export type BinanceRawMarketProviderSequence = BinanceRawProviderSequence;
 
+export interface BinanceRawDepthSnapshotInput {
+  venue: "BINANCE_USDM";
+  instrument: string;
+  channel: "public-depth";
+  transport: "REST";
+  method: "GET";
+  origin: string;
+  path: "/fapi/v1/depth";
+  query: string;
+  http_status: number;
+  local_receive_timestamp_ms: number;
+  monotonic_receive_ns: string;
+  normalization_version: "binance-usdm-depth-snapshot-inspection.v1";
+  raw_response: string;
+}
+
+export type BinanceRawDepthSnapshotProvenance =
+  BinanceRawDepthSnapshotInput & {
+    raw_response_sha256: string;
+  };
+
 export interface BinanceStreamEvidenceRecordV2
   extends BinanceStreamEvidenceRecordBase {
   schema_version: "glitch.crypto.binance-usdm-stream-evidence.v2";
@@ -101,16 +123,30 @@ export interface BinanceStreamEvidenceRecordV2
   provenance: BinanceRawFrameProvenance;
 }
 
+export interface BinanceStreamEvidenceRecordV3
+  extends BinanceStreamEvidenceRecordBase {
+  schema_version: "glitch.crypto.binance-usdm-stream-evidence.v3";
+  channel: "public-depth";
+  kind: "raw_snapshot";
+  payload: null;
+  provenance: BinanceRawDepthSnapshotProvenance;
+}
+
+export type BinanceRawEvidenceInput =
+  | BinanceRawFrameInput
+  | BinanceRawDepthSnapshotInput;
+
 export type BinanceStreamEvidenceRecord =
   | BinanceStreamEvidenceRecordV1
-  | BinanceStreamEvidenceRecordV2;
+  | BinanceStreamEvidenceRecordV2
+  | BinanceStreamEvidenceRecordV3;
 
 export interface BinanceStreamEvidenceSink {
   record(
     channel: BinanceStreamEvidenceChannel,
     kind: BinanceStreamEvidenceKind,
     payload: unknown,
-    rawFrame?: BinanceRawFrameInput,
+    rawEvidence?: BinanceRawEvidenceInput,
   ): BinanceStreamEvidenceRecord;
 }
 
@@ -135,7 +171,7 @@ export class InMemoryBinanceStreamEvidenceSink implements BinanceStreamEvidenceS
     channel: BinanceStreamEvidenceChannel,
     kind: BinanceStreamEvidenceKind,
     payload: unknown,
-    rawFrame?: BinanceRawFrameInput,
+    rawEvidence?: BinanceRawEvidenceInput,
   ): BinanceStreamEvidenceRecord {
     const record = makeRecord(
       this.sessionId,
@@ -145,7 +181,7 @@ export class InMemoryBinanceStreamEvidenceSink implements BinanceStreamEvidenceS
       kind,
       payload,
       this.forbiddenValues,
-      rawFrame,
+      rawEvidence,
     );
     this.records.push(record);
     return record;
@@ -186,7 +222,7 @@ export class JsonlBinanceStreamEvidenceSink implements BinanceStreamEvidenceSink
     channel: BinanceStreamEvidenceChannel,
     kind: BinanceStreamEvidenceKind,
     payload: unknown,
-    rawFrame?: BinanceRawFrameInput,
+    rawEvidence?: BinanceRawEvidenceInput,
   ): BinanceStreamEvidenceRecord {
     const record = makeRecord(
       this.sessionId,
@@ -196,7 +232,7 @@ export class JsonlBinanceStreamEvidenceSink implements BinanceStreamEvidenceSink
       kind,
       payload,
       this.forbiddenValues,
-      rawFrame,
+      rawEvidence,
     );
     const line = `${JSON.stringify(record)}\n`;
     this.rotateIfNeeded(new TextEncoder().encode(line).byteLength);
@@ -224,7 +260,7 @@ function makeRecord(
   kind: BinanceStreamEvidenceKind,
   payload: unknown,
   forbiddenValues: readonly string[],
-  rawFrame?: BinanceRawFrameInput,
+  rawEvidence?: BinanceRawEvidenceInput,
 ): BinanceStreamEvidenceRecord {
   const redacted = redactProviderEvidence(payload, forbiddenValues);
   assertProviderEvidenceIsSecretFree(redacted, forbiddenValues);
@@ -236,29 +272,122 @@ function makeRecord(
     kind,
     payload: redacted,
   };
-  if (rawFrame !== undefined) {
-    if (channel !== rawFrame.channel || kind !== "message") {
-      throw new Error("raw frame provenance must match its public message channel");
+  if (rawEvidence !== undefined && "raw_response" in rawEvidence) {
+    if (
+      channel !== "public-depth" ||
+      kind !== "raw_snapshot" ||
+      payload !== null
+    ) {
+      throw new Error(
+        "raw snapshot provenance requires a null public-depth raw_snapshot record",
+      );
     }
-    validateRawFrame(rawFrame);
-    assertProviderEvidenceIsSecretFree(rawFrame.raw_frame, forbiddenValues);
+    validateRawSnapshot(rawEvidence);
+    assertProviderEvidenceIsSecretFree(
+      rawEvidence.raw_response,
+      forbiddenValues,
+    );
     return {
-      schema_version: "glitch.crypto.binance-usdm-stream-evidence.v2",
+      schema_version: "glitch.crypto.binance-usdm-stream-evidence.v3",
       ...common,
-      channel: rawFrame.channel,
-      kind: "message",
+      channel: "public-depth",
+      kind: "raw_snapshot",
+      payload: null,
       provenance: {
-        ...rawFrame,
-        raw_frame_sha256: createHash("sha256")
-          .update(rawFrame.raw_frame)
+        ...rawEvidence,
+        raw_response_sha256: createHash("sha256")
+          .update(rawEvidence.raw_response)
           .digest("hex"),
       },
     };
+  }
+  if (rawEvidence !== undefined) {
+    if (channel !== rawEvidence.channel || kind !== "message") {
+      throw new Error("raw frame provenance must match its public message channel");
+    }
+    validateRawFrame(rawEvidence);
+    assertProviderEvidenceIsSecretFree(rawEvidence.raw_frame, forbiddenValues);
+    return {
+      schema_version: "glitch.crypto.binance-usdm-stream-evidence.v2",
+      ...common,
+      channel: rawEvidence.channel,
+      kind: "message",
+      provenance: {
+        ...rawEvidence,
+        raw_frame_sha256: createHash("sha256")
+          .update(rawEvidence.raw_frame)
+          .digest("hex"),
+      },
+    };
+  }
+  if (kind === "raw_snapshot") {
+    throw new Error("raw snapshot evidence requires exact response provenance");
   }
   return {
     schema_version: "glitch.crypto.binance-usdm-stream-evidence.v1",
     ...common,
   };
+}
+
+function validateRawSnapshot(input: BinanceRawDepthSnapshotInput): void {
+  if (
+    input.venue !== "BINANCE_USDM" ||
+    input.channel !== "public-depth" ||
+    input.transport !== "REST" ||
+    input.method !== "GET" ||
+    input.path !== "/fapi/v1/depth" ||
+    input.normalization_version !==
+      "binance-usdm-depth-snapshot-inspection.v1"
+  ) {
+    throw new Error("raw depth snapshot provenance authority is invalid");
+  }
+  if (!/^[A-Z0-9]{5,24}$/.test(input.instrument)) {
+    throw new Error("raw depth snapshot instrument is invalid");
+  }
+  const origin = new URL(input.origin);
+  const loopback =
+    origin.hostname === "127.0.0.1" ||
+    origin.hostname === "::1" ||
+    origin.hostname === "[::1]";
+  if (
+    origin.origin !== input.origin ||
+    origin.username ||
+    origin.password ||
+    origin.search ||
+    origin.hash ||
+    (origin.pathname !== "/" && origin.pathname !== "") ||
+    (origin.protocol !== "https:" && !(loopback && origin.protocol === "http:"))
+  ) {
+    throw new Error("raw depth snapshot origin is invalid");
+  }
+  if (
+    typeof input.query !== "string" ||
+    input.query.length === 0 ||
+    input.query.length > 2_048 ||
+    /(?:^|&)(?:signature|timestamp|recvWindow)=/i.test(input.query)
+  ) {
+    throw new Error("raw depth snapshot query is invalid");
+  }
+  if (
+    !Number.isSafeInteger(input.http_status) ||
+    input.http_status < 200 ||
+    input.http_status > 299
+  ) {
+    throw new Error("raw depth snapshot HTTP status is invalid");
+  }
+  if (
+    !Number.isSafeInteger(input.local_receive_timestamp_ms) ||
+    input.local_receive_timestamp_ms <= 0 ||
+    !/^[1-9]\d*$/.test(input.monotonic_receive_ns)
+  ) {
+    throw new Error("raw depth snapshot receive time is invalid");
+  }
+  if (
+    typeof input.raw_response !== "string" ||
+    input.raw_response.length === 0
+  ) {
+    throw new Error("raw depth snapshot response is required");
+  }
 }
 
 function validateRawFrame(input: BinanceRawFrameInput): void {

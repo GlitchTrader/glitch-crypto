@@ -39,10 +39,12 @@ The active listen key MUST be renewed on a configurable interval shorter than th
 Snapshots, reconciliations, provider messages, transitions, keepalives, and
 errors MUST be written to a rotating local JSONL journal. Public depth messages
 MUST retain the exact decoded WebSocket frame, hash, connection identity, dual
-receive clocks, provider sequence, and inspection version before parsing. REST
-snapshots remain parsed evidence and MUST NOT be described as byte-exact. The
-journal MUST redact configured credentials, signatures, tokens, listen keys,
-and sensitive-key fields. A single active file plus one backup bounds disk use.
+receive clocks, provider sequence, and inspection version before parsing. The
+public REST depth response MUST be retained exactly with request and receive
+provenance before JSON parsing, followed by a distinct parsed snapshot record.
+The journal MUST redact configured credentials, signatures, tokens, listen
+keys, and sensitive-key fields. A single active file plus one backup bounds
+disk use.
 
 ### FR-B009 Replay
 
@@ -51,7 +53,9 @@ buffering across snapshot boundaries and private buffering across
 reconciliation boundaries. Exact public depth replay acceptance additionally
 MUST verify raw hash, parsed-payload equivalence, provider identity, connection
 attribution, and strictly increasing monotonic receive time. Supervisor-only
-records MAY be ignored but counted.
+records MAY be ignored but counted. Exact depth-session replay MUST additionally
+pair each raw REST bootstrap to its parsed snapshot and verify response hash,
+normalized payload, update identity, request identity, and receive ordering.
 
 ### FR-B010 Operator surface
 

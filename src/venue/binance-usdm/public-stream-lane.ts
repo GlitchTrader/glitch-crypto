@@ -7,6 +7,7 @@ import {
 } from "./order-book.js";
 import type {
   BinanceRawDepthFrameInput,
+  BinanceRawDepthSnapshotInput,
   BinanceRawProviderSequence,
   BinanceStreamEvidenceSink,
 } from "./stream-evidence.js";
@@ -155,10 +156,27 @@ export class BinancePublicStreamLane {
       connection_id: connectionId,
     });
     try {
-      const snapshotValue = await this.rest.publicGet("/fapi/v1/depth", {
+      const parameters = {
         symbol: this.options.symbol,
         limit: this.options.depthLimit,
-      });
+      };
+      let snapshotValue: unknown;
+      if (this.rest.publicGetRaw) {
+        const raw = await this.rest.publicGetRaw(
+          "/fapi/v1/depth",
+          parameters,
+        );
+        if (epoch !== this.epoch || !this.desiredRunning) {
+          return;
+        }
+        this.recordRawSnapshot(raw);
+        snapshotValue = parseRawSnapshotResponse(raw.raw_response);
+      } else {
+        snapshotValue = await this.rest.publicGet(
+          "/fapi/v1/depth",
+          parameters,
+        );
+      }
       if (epoch !== this.epoch || !this.desiredRunning) {
         return;
       }
@@ -319,6 +337,53 @@ export class BinancePublicStreamLane {
       payload,
       provenance,
     );
+  }
+
+  private recordRawSnapshot(
+    raw: {
+      method: "GET";
+      origin: string;
+      path: string;
+      query: string;
+      http_status: number;
+      local_receive_timestamp_ms: number;
+      monotonic_receive_ns: string;
+      raw_response: string;
+    },
+  ): void {
+    const provenance: BinanceRawDepthSnapshotInput = {
+      venue: "BINANCE_USDM",
+      instrument: this.options.symbol,
+      channel: "public-depth",
+      transport: "REST",
+      method: raw.method,
+      origin: raw.origin,
+      path: "/fapi/v1/depth",
+      query: raw.query,
+      http_status: raw.http_status,
+      local_receive_timestamp_ms: raw.local_receive_timestamp_ms,
+      monotonic_receive_ns: raw.monotonic_receive_ns,
+      normalization_version:
+        "binance-usdm-depth-snapshot-inspection.v1",
+      raw_response: raw.raw_response,
+    };
+    if (raw.path !== provenance.path) {
+      throw new Error("raw Binance depth snapshot path is not attributable");
+    }
+    this.options.evidence.record(
+      "public-depth",
+      "raw_snapshot",
+      null,
+      provenance,
+    );
+  }
+}
+
+function parseRawSnapshotResponse(rawResponse: string): unknown {
+  try {
+    return JSON.parse(rawResponse) as unknown;
+  } catch {
+    throw new Error("Binance depth snapshot response was not valid JSON");
   }
 }
 

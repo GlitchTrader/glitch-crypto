@@ -1,0 +1,75 @@
+{
+  "schema_version": "glitch.crypto.binance-usdm-public-evidence-report.v3",
+  "evidence_sha256": "b6063706916aa5b9ec2784a9b0bb4b4359d47be03f9a6ff2527c89c4522afb07",
+  "mutation_authority": false,
+  "accepted_for_public_replay": true,
+  "accepted_for_depth_frame_replay": true,
+  "accepted_for_depth_session_replay": true,
+  "rejection_reasons": [],
+  "depth_frame_rejection_reasons": [],
+  "depth_session_rejection_reasons": [],
+  "warnings": [],
+  "session_ids": [
+    "697bbb6d-9c1c-4f5a-92fa-6aea9961f9b8"
+  ],
+  "record_count": 42,
+  "first_recorded_utc": "2026-08-25T03:08:52.399Z",
+  "last_recorded_utc": "2026-08-25T03:09:00.464Z",
+  "duration_ms": 8065,
+  "sequence_contiguous": true,
+  "timestamps_monotonic": true,
+  "supervisor_start_observed": true,
+  "supervisor_stop_observed": true,
+  "public_running_observed": true,
+  "counts": {
+    "supervisor_transitions": 2,
+    "public_transitions": 4,
+    "public_raw_snapshots": 1,
+    "public_snapshots": 1,
+    "public_messages": 34,
+    "public_errors": 0,
+    "public_backoff_transitions": 0,
+    "private_records": 0,
+    "other_records": 0
+  },
+  "depth_provenance": {
+    "legacy_message_records": 0,
+    "replay_grade_message_records": 34,
+    "connection_ids": [
+      "0a9ddee4-4082-4b7c-b1cf-20d3eee11857"
+    ],
+    "raw_hash_mismatches": 0,
+    "raw_payload_mismatches": 0,
+    "provider_identity_mismatches": 0,
+    "unattributed_connection_records": 0,
+    "non_monotonic_receive_times": 0
+  },
+  "snapshot_provenance": {
+    "raw_snapshot_records": 1,
+    "paired_snapshot_records": 1,
+    "parsed_snapshots_without_raw": 0,
+    "raw_snapshots_without_parsed": 0,
+    "raw_hash_mismatches": 0,
+    "raw_response_parse_failures": 0,
+    "normalized_payload_mismatches": 0,
+    "update_identity_mismatches": 0,
+    "request_identity_mismatches": 0,
+    "non_monotonic_receive_times": 0
+  },
+  "replay": {
+    "processed_records": 35,
+    "ignored_records": 7,
+    "order_book_status": "ready",
+    "symbol": "BTCUSDT",
+    "update_id": 410750276919,
+    "best_bid": [
+      "80908.80",
+      "32.6939"
+    ],
+    "best_ask": [
+      "80918.70",
+      "2.0324"
+    ],
+    "gap_reason": null
+  }
+}
