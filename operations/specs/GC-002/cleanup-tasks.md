@@ -7,4 +7,4 @@
 - [x] G005 Prove ordering, ambiguity, cleanup, and redaction in deterministic tests.
 - [x] G006 Update mutation docs and ADR.
 - [x] G007 Run the complete repository gate: 68/68 deterministic tests passed.
-- [ ] G008 Commit and push dormant source to `main`.
+- [x] G008 Commit and push dormant source to `main` as `0a3423d`.
