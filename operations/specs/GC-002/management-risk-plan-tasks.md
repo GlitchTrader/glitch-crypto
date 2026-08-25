@@ -12,7 +12,7 @@
 ## Verification and evidence
 
 - [x] Q005 Run `npm.cmd run check` and record factual output.
-- [ ] Q006 Update GitHub and Rail evidence, then push direct to `main`.
+- [x] Q006 Update GitHub and Rail evidence, then push direct to `main`.
 
 ## Dependencies and stop lines
 
