@@ -66,3 +66,11 @@ Not accepted in this branch:
 4. Prove reconnect, gap, duplicate, out-of-order, and restart behavior against observed fixtures.
 5. Compare OKX and Hyperliquid against the same matrix.
 6. Only then specify the mutation/protection phase.
+
+## Mutation contract update — 2026-08-24
+
+The current official USD-M contract declares separate ordinary
+`/fapi/v1/order` and conditional `/fapi/v1/algoOrder` surfaces, deterministic
+client identities and exact query endpoints. Phase D specifies this declared
+contract behind a Testnet/loopback-only boundary in `mutation-spec.md`.
+Declaration and deterministic tests do not accept production mutation.

@@ -132,6 +132,11 @@ received → validated → persisted → submission_started → visibility_pendi
 Unknown venue outcome:
 visibility_pending ↔ reconciling → terminal evidence
 
+Protected entry:
+entry_visibility_pending → filled_unprotected → stop_visibility_pending
+                          → emergency_flatten_pending → closed
+                          → open_protected_target_pending → open_protected
+
 Lesson:
 proposed → testing → confirmed/contradicted → active → revised/retired/expired
 ```
