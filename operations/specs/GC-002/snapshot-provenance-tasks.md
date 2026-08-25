@@ -9,6 +9,6 @@
 - [x] J007 Prove malformed response retention and tamper rejection.
 - [x] J008 Preserve historical parsed and frame-only claim boundaries.
 - [x] J009 Retain bounded observed replay-grade Testnet session evidence.
-- [ ] J010 Update docs, ontology, ADR, Rail, and GitHub evidence.
+- [x] J010 Update docs, ontology, ADR, Rail, and GitHub evidence.
 - [x] J011 Run the complete repository gate.
-- [ ] J012 Commit and push directly to `main`.
+- [x] J012 Commit and push directly to `main`.
