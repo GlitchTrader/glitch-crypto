@@ -19,7 +19,7 @@ Checkboxes decompose this one Rail item. `operations/ledger.json` remains the on
 ## Verification and evidence
 
 - [x] N007 Run `npm.cmd run check` and record factual output.
-- [ ] N008 Update Rail and GitHub evidence, then push direct to `main`.
+- [x] N008 Update Rail and GitHub evidence, then push direct to `main`.
 
 ## Dependencies and stop lines
 
