@@ -11,7 +11,7 @@
 - [x] T007 Add deterministic reduce-only emergency close for unprovable stops.
 - [x] T008 Prove happy path, ambiguity, stop failure, target failure, no duplicate POST, redaction, and URL rejection.
 - [x] T009 Run the complete repository gate and validate Rail.
-- [ ] T010 Update Rail and GitHub issue #5 with factual evidence.
+- [x] T010 Update Rail and GitHub issue #5 with factual evidence.
 
 These checkboxes decompose GC-002 only. `operations/ledger.json` remains the
 current-work authority.
