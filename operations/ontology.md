@@ -72,7 +72,10 @@ unknown provider extensions from evidence. Replay-grade evidence also binds the
 exact raw frame and hash to venue, instrument, channel, socket connection,
 exchange time, local wall-clock receive time, monotonic receive time, provider
 sequence identity, and the versioned inspection contract. Missing historical
-provenance remains explicit and is never reconstructed by inference.
+provenance remains explicit and is never reconstructed by inference. For a
+depth event, `E`, `T`, `U`, `u`, and `pu` are provider identity; the parsed REST
+snapshot is a distinct bootstrap fact and is not represented as an exact raw
+frame.
 
 ### TradingIntent
 

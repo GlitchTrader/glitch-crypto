@@ -46,6 +46,8 @@ export interface BinanceUsdmStreamSupervisorOptions {
   scheduler?: BinanceStreamScheduler;
   evidence?: BinanceStreamEvidenceSink;
   now?: () => number;
+  publicMonotonicClock?: () => bigint;
+  publicConnectionIdFactory?: () => string;
 }
 
 export interface BinanceUsdmStreamSupervisorStatus {
@@ -122,6 +124,9 @@ export class BinanceUsdmStreamSupervisor {
       socketFactory,
       scheduler,
       evidence: this.evidence,
+      wallClock: now,
+      monotonicClock: options.publicMonotonicClock,
+      connectionIdFactory: options.publicConnectionIdFactory,
     });
     this.privateLane = listenKeySession
       ? new BinancePrivateStreamLane(rest, listenKeySession, {

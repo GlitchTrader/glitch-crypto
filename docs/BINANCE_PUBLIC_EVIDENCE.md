@@ -13,13 +13,18 @@ GLITCH_BINANCE_USDM_EVIDENCE_PATH=./artifacts/binance-usdm-public.jsonl \
 The capture command:
 
 - starts only the read-only public depth lane;
-- records supervisor start/stop, stream transitions, diff-depth messages, and the REST snapshot;
+- records supervisor start/stop, stream transitions, exact diff-depth WebSocket
+  frames, and the parsed REST snapshot;
+- binds each version-2 depth message to venue, instrument, channel, connection,
+  exchange time, wall-clock and monotonic receive time, `E`/`T`/`U`/`u`/`pu`
+  provider identity, inspection version, and the raw-frame SHA-256;
 - runs for 5-300 seconds and terminates deterministically;
 - refuses to overwrite an existing evidence file;
 - writes a SHA-256-bound manifest beside the JSONL evidence; its digest uses
   canonical LF JSONL text so the same frozen session has one identity on every
   supported checkout platform;
-- exits nonzero unless the frozen session passes the public replay contract;
+- exits nonzero unless the frozen session passes both the parsed public replay
+  contract and the exact depth-frame replay contract;
 - never reads an API key and has no mutation authority.
 
 `GLITCH_BINANCE_USDM_EVIDENCE_MIN_MESSAGES` defaults to 10. Runtime acceptance jobs set a higher threshold appropriate to the capture duration.
@@ -31,7 +36,15 @@ GLITCH_BINANCE_USDM_EVIDENCE_MIN_MESSAGES=25 \
   npm run binance:evidence -- verify-public ./artifacts/binance-usdm-public.jsonl
 ```
 
-Verification requires one session, contiguous record sequence, nondecreasing timestamps, explicit start and stop, an observed running state, at least one snapshot, sufficient public messages, no private records, and a deterministic replay ending in a non-crossed ready book. Stream errors remain visible as warnings.
+Verification requires one session, contiguous record sequence, nondecreasing
+timestamps, explicit start and stop, an observed running state, at least one
+snapshot, sufficient public messages, no private records, and a deterministic
+replay ending in a non-crossed ready book. The stronger depth-frame claim also
+requires every depth message to be version 2 with verified raw integrity,
+payload equivalence, provider identity, connection attribution, strict receive
+ordering, and a lifecycle without errors or reconnect backoff. Historical
+version-1 fixtures remain readable but are explicitly legacy for this stronger
+claim.
 
 ## Observed runs
 
@@ -59,10 +72,36 @@ Commit `747e29bfd6544bdb16f86c913017c1010cd15a2a` corrected the continuity model
 
 A compact observed fixture is frozen at `tests/fixtures/binance-usdm/observed-testnet-public.jsonl`. Its provenance and deterministic derivation are recorded in `operations/evidence/GC-002/binance-testnet-run-32788614491.json`.
 
+### Accepted replay-grade Testnet depth provenance
+
+The 2026-08-25 credential-free capture retained exact routed Futures Testnet
+depth frames before parsing:
+
+- duration: 8.080 seconds;
+- records: 34;
+- public depth messages: 27 version-2 frames;
+- REST snapshots: 1 parsed snapshot;
+- connections: 1;
+- reconnects and stream errors: 0;
+- raw hash, payload, provider-identity, connection-attribution, and receive-order
+  faults: 0;
+- replay result: ready BTCUSDT book, update ID `410738930139`;
+- canonical evidence SHA-256:
+  `99c1ac43c95bb7e1890a6feca7e028ebf3ed0da3e40bcf0568db3279cc232467`.
+
+The frozen JSONL and manifest are
+`operations/evidence/GC-002/binance-testnet-depth-provenance-2026-08-25.jsonl`
+and its adjacent `.manifest.json`.
+
 ## Workflow policy
 
 `.github/workflows/binance-public-evidence.yml` is manual-only through `workflow_dispatch`. Live exchange availability is not a mandatory CI dependency. Mandatory CI uses the frozen fixture and deterministic verifier.
 
 ## Authority boundary
 
-This evidence accepts only bounded public Futures Testnet transport and replay behavior. It does not establish production eligibility, mainnet market quality, authenticated account access, fee tier, precision discovery, private-stream recovery, native protection, fill behavior, mutation safety, or profitability.
+This evidence accepts only bounded public Futures Testnet transport, parsed
+snapshot/delta replay, and exact diff-depth WebSocket frame provenance. It does
+not claim byte-exact REST snapshot provenance, production eligibility, mainnet
+market quality, authenticated account access, fee tier, precision discovery,
+private-stream recovery, native protection, fill behavior, mutation safety, or
+profitability.

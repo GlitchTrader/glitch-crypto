@@ -36,11 +36,22 @@ The active listen key MUST be renewed on a configurable interval shorter than th
 
 ### FR-B008 Bounded evidence
 
-Snapshots, reconciliations, normalized provider messages, transitions, keepalives, and errors MUST be written to a rotating local JSONL journal. The journal MUST redact configured credentials, signatures, tokens, listen keys, and sensitive-key fields. A single active file plus one backup bounds disk use.
+Snapshots, reconciliations, provider messages, transitions, keepalives, and
+errors MUST be written to a rotating local JSONL journal. Public depth messages
+MUST retain the exact decoded WebSocket frame, hash, connection identity, dual
+receive clocks, provider sequence, and inspection version before parsing. REST
+snapshots remain parsed evidence and MUST NOT be described as byte-exact. The
+journal MUST redact configured credentials, signatures, tokens, listen keys,
+and sensitive-key fields. A single active file plus one backup bounds disk use.
 
 ### FR-B009 Replay
 
-Replay MUST consume evidence in recorded file order. It MUST reproduce public buffering across snapshot boundaries and private buffering across reconciliation boundaries. Supervisor-only records MAY be ignored but counted.
+Replay MUST consume evidence in recorded file order. It MUST reproduce public
+buffering across snapshot boundaries and private buffering across
+reconciliation boundaries. Exact public depth replay acceptance additionally
+MUST verify raw hash, parsed-payload equivalence, provider identity, connection
+attribution, and strictly increasing monotonic receive time. Supervisor-only
+records MAY be ignored but counted.
 
 ### FR-B010 Operator surface
 

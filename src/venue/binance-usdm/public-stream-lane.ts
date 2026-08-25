@@ -1,10 +1,15 @@
+import { randomUUID } from "node:crypto";
 import {
   BinanceUsdmOrderBook,
   parseBinanceDepthDelta,
   parseBinanceDepthSnapshot,
   type BinanceOrderBookView,
 } from "./order-book.js";
-import type { BinanceStreamEvidenceSink } from "./stream-evidence.js";
+import type {
+  BinanceRawDepthFrameInput,
+  BinanceRawProviderSequence,
+  BinanceStreamEvidenceSink,
+} from "./stream-evidence.js";
 import {
   SERVICE_RESTART_CLOSE,
   binanceMarketStreamUrl,
@@ -28,6 +33,9 @@ export interface BinancePublicStreamLaneOptions {
   socketFactory: BinanceWebSocketFactory;
   scheduler: BinanceStreamScheduler;
   evidence: BinanceStreamEvidenceSink;
+  wallClock?: () => number;
+  monotonicClock?: () => bigint;
+  connectionIdFactory?: () => string;
 }
 
 export interface BinancePublicStreamLaneStatus {
@@ -85,6 +93,8 @@ export class BinancePublicStreamLane {
     }
     this.clearRestartTimer();
     const epoch = ++this.epoch;
+    const connectionId =
+      this.options.connectionIdFactory?.() ?? randomUUID();
     this.state = "connecting";
     this.orderBook.reset();
     const streamName = `${this.options.symbol.toLowerCase()}@depth@100ms`;
@@ -100,12 +110,13 @@ export class BinancePublicStreamLane {
       state: "connecting",
       epoch,
       stream: streamName,
+      connection_id: connectionId,
     });
     socket.addEventListener("open", () => {
-      void this.onOpen(epoch);
+      void this.onOpen(epoch, connectionId);
     });
     socket.addEventListener("message", (event) => {
-      void this.onMessage(epoch, event.data);
+      void this.onMessage(epoch, connectionId, event.data);
     });
     socket.addEventListener("error", (event) => {
       if (epoch !== this.epoch) {
@@ -133,12 +144,16 @@ export class BinancePublicStreamLane {
     });
   }
 
-  private async onOpen(epoch: number): Promise<void> {
+  private async onOpen(epoch: number, connectionId: string): Promise<void> {
     if (epoch !== this.epoch || !this.desiredRunning) {
       return;
     }
     this.state = "synchronizing";
-    this.record("transition", { state: "synchronizing", epoch });
+    this.record("transition", {
+      state: "synchronizing",
+      epoch,
+      connection_id: connectionId,
+    });
     try {
       const snapshotValue = await this.rest.publicGet("/fapi/v1/depth", {
         symbol: this.options.symbol,
@@ -159,6 +174,7 @@ export class BinancePublicStreamLane {
       this.record("transition", {
         state: "running",
         epoch,
+        connection_id: connectionId,
         update_id: view.update_id,
       });
     } catch (error) {
@@ -170,16 +186,45 @@ export class BinancePublicStreamLane {
     }
   }
 
-  private async onMessage(epoch: number, data: unknown): Promise<void> {
+  private async onMessage(
+    epoch: number,
+    connectionId: string,
+    data: unknown,
+  ): Promise<void> {
     if (epoch !== this.epoch || !this.desiredRunning) {
       return;
     }
+    const localReceiveTimestampMs =
+      this.options.wallClock?.() ?? Date.now();
+    const monotonicReceiveNs = (
+      this.options.monotonicClock?.() ??
+        BigInt(Math.max(1, Math.trunc(performance.now() * 1_000_000)))
+    ).toString();
     try {
-      const payload = unwrapBinanceStreamPayload(
-        await decodeBinanceMessageData(data),
+      const rawFrame = await decodeBinanceMessageData(data);
+      let payload: unknown;
+      try {
+        payload = unwrapBinanceStreamPayload(rawFrame);
+      } catch (error) {
+        this.recordRawMessage(
+          connectionId,
+          localReceiveTimestampMs,
+          monotonicReceiveNs,
+          rawFrame,
+          null,
+        );
+        throw error;
+      }
+      this.recordRawMessage(
+        connectionId,
+        localReceiveTimestampMs,
+        monotonicReceiveNs,
+        rawFrame,
+        payload,
       );
-      this.record("message", payload);
-      const result = this.orderBook.ingest(parseBinanceDepthDelta(payload));
+      const delta = parseBinanceDepthDelta(payload);
+      assertDepthStreamIdentity(payload, delta.s, this.options.symbol);
+      const result = this.orderBook.ingest(delta);
       if (result === "gapped") {
         this.scheduleRestart(
           this.orderBook.view().gap_reason ?? "depth_gap",
@@ -246,5 +291,83 @@ export class BinancePublicStreamLane {
       type,
       message: error instanceof Error ? error.message : String(error),
     });
+  }
+
+  private recordRawMessage(
+    connectionId: string,
+    localReceiveTimestampMs: number,
+    monotonicReceiveNs: string,
+    rawFrame: string,
+    payload: unknown,
+  ): void {
+    const providerSequence = describeDepthProviderSequence(payload);
+    const provenance: BinanceRawDepthFrameInput = {
+      venue: "BINANCE_USDM",
+      instrument: this.options.symbol,
+      channel: "public-depth",
+      connection_id: connectionId,
+      local_receive_timestamp_ms: localReceiveTimestampMs,
+      monotonic_receive_ns: monotonicReceiveNs,
+      exchange_timestamp_ms: positiveInteger(providerSequence.event_time_ms),
+      provider_sequence: providerSequence,
+      normalization_version: "binance-usdm-depth-inspection.v1",
+      raw_frame: rawFrame,
+    };
+    this.options.evidence.record(
+      "public-depth",
+      "message",
+      payload,
+      provenance,
+    );
+  }
+}
+
+function describeDepthProviderSequence(
+  payload: unknown,
+): BinanceRawProviderSequence {
+  const record =
+    payload !== null && typeof payload === "object" && !Array.isArray(payload)
+      ? payload as Record<string, unknown>
+      : {};
+  return {
+    event_type: typeof record.e === "string" ? record.e : null,
+    event_time_ms: safeInteger(record.E),
+    aggregate_trade_id: null,
+    first_trade_id: null,
+    last_trade_id: null,
+    trade_time_ms: null,
+    first_update_id: safeInteger(record.U),
+    final_update_id: safeInteger(record.u),
+    previous_final_update_id: safeInteger(record.pu),
+    transaction_time_ms: safeInteger(record.T),
+  };
+}
+
+function safeInteger(value: unknown): number | null {
+  return Number.isSafeInteger(value) && (value as number) >= 0
+    ? value as number
+    : null;
+}
+
+function positiveInteger(value: number | null): number | null {
+  return value !== null && value > 0 ? value : null;
+}
+
+function assertDepthStreamIdentity(
+  payload: unknown,
+  observedSymbol: string | undefined,
+  expectedSymbol: string,
+): void {
+  const record =
+    payload !== null && typeof payload === "object" && !Array.isArray(payload)
+      ? payload as Record<string, unknown>
+      : {};
+  if (record.e !== "depthUpdate") {
+    throw new Error("Binance public depth event type must be depthUpdate");
+  }
+  if (observedSymbol !== expectedSymbol) {
+    throw new Error(
+      `Binance public depth symbol ${observedSymbol ?? "missing"} does not match ${expectedSymbol}`,
+    );
   }
 }

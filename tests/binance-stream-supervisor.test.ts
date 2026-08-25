@@ -173,11 +173,19 @@ test("public depth buffers before snapshot and reconnects on continuity loss", a
   const sockets = new FakeSocketFactory();
   const scheduler = new FakeScheduler();
   const evidence = new InMemoryBinanceStreamEvidenceSink();
+  const connectionIds = ["depth-connection-0001", "depth-connection-0002"];
+  let connectionIndex = 0;
+  let receiveNow = 1_787_622_187_000;
+  let monotonicNow = 10_000_000n;
   const supervisor = new BinanceUsdmStreamSupervisor(rest, null, {
     socketFactory: sockets,
     scheduler,
     evidence,
     reconnectBaseMs: 1,
+    now: () => (receiveNow += 10),
+    publicMonotonicClock: () => (monotonicNow += 1_000n),
+    publicConnectionIdFactory: () =>
+      connectionIds[connectionIndex++] ?? "unexpected-connection",
   });
 
   await supervisor.start(false);
@@ -210,6 +218,20 @@ test("public depth buffers before snapshot and reconnects on continuity loss", a
 
   assert.equal(supervisor.status().public.state, "running");
   assert.deepEqual(supervisor.status().public.order_book.best_bid, ["60000", "2"]);
+  const firstMessage = evidence.records.find(
+    (record) =>
+      record.schema_version ===
+      "glitch.crypto.binance-usdm-stream-evidence.v2",
+  );
+  if (!firstMessage) {
+    throw new Error("replay-grade depth evidence was not recorded");
+  }
+  assert.equal(firstMessage.channel, "public-depth");
+  assert.equal(firstMessage.provenance.connection_id, "depth-connection-0001");
+  assert.equal(firstMessage.provenance.provider_sequence.first_update_id, 101);
+  assert.equal(firstMessage.provenance.provider_sequence.final_update_id, 101);
+  assert.equal(firstMessage.provenance.provider_sequence.previous_final_update_id, 100);
+  assert.equal(firstMessage.provenance.raw_frame_sha256.length, 64);
 
   publicSocket.message({
     e: "depthUpdate",
@@ -227,6 +249,119 @@ test("public depth buffers before snapshot and reconnects on continuity loss", a
   scheduler.runNextTimeout();
   assert.equal(sockets.sockets.length, 2);
   assert.equal(supervisor.status().public.state, "connecting");
+  assert.equal(
+    evidence.records.some(
+      (record) =>
+        record.kind === "transition" &&
+        (record.payload as Record<string, unknown>).connection_id ===
+          "depth-connection-0002",
+    ),
+    true,
+  );
+  await supervisor.stop();
+});
+
+test("invalid depth JSON is retained exactly before reconnect", async () => {
+  const rest = new FakeRest();
+  const sockets = new FakeSocketFactory();
+  const scheduler = new FakeScheduler();
+  const evidence = new InMemoryBinanceStreamEvidenceSink();
+  const connectionIds = ["depth-connection-invalid-0001", "depth-connection-invalid-0002"];
+  let connectionIndex = 0;
+  const supervisor = new BinanceUsdmStreamSupervisor(rest, null, {
+    socketFactory: sockets,
+    scheduler,
+    evidence,
+    reconnectBaseMs: 1,
+    now: () => 1_787_622_187_100,
+    publicMonotonicClock: () => 1_000_000n,
+    publicConnectionIdFactory: () =>
+      connectionIds[connectionIndex++] ?? "unexpected-connection",
+  });
+
+  await supervisor.start(false);
+  const socket = sockets.sockets[0];
+  if (!socket) {
+    throw new Error("public socket was not created");
+  }
+  socket.open();
+  socket.message("{invalid-json");
+  await flushAsync();
+
+  const rawRecord = evidence.records.find(
+    (record) =>
+      record.schema_version ===
+      "glitch.crypto.binance-usdm-stream-evidence.v2",
+  );
+  const errorRecord = evidence.records.find((record) => record.kind === "error");
+  if (!rawRecord || !errorRecord) {
+    throw new Error("raw depth error evidence was not recorded");
+  }
+  assert.equal(rawRecord.payload, null);
+  assert.equal(rawRecord.provenance.raw_frame, "{invalid-json");
+  assert.ok(evidence.records.indexOf(rawRecord) < evidence.records.indexOf(errorRecord));
+  assert.equal(supervisor.status().public.state, "backoff");
+
+  scheduler.runNextTimeout();
+  assert.equal(sockets.sockets.length, 2);
+  assert.equal(
+    evidence.records.some(
+      (record) =>
+        record.kind === "transition" &&
+        (record.payload as Record<string, unknown>).connection_id ===
+          "depth-connection-invalid-0002",
+    ),
+    true,
+  );
+  await supervisor.stop();
+});
+
+test("malformed depth identity is retained before fail-closed reconnect", async () => {
+  const rest = new FakeRest();
+  const sockets = new FakeSocketFactory();
+  const scheduler = new FakeScheduler();
+  const evidence = new InMemoryBinanceStreamEvidenceSink();
+  const supervisor = new BinanceUsdmStreamSupervisor(rest, null, {
+    socketFactory: sockets,
+    scheduler,
+    evidence,
+    reconnectBaseMs: 1,
+    now: () => 1_787_622_187_100,
+    publicMonotonicClock: () => 1_000_000n,
+    publicConnectionIdFactory: () => "depth-connection-malformed-0001",
+  });
+
+  await supervisor.start(false);
+  const socket = sockets.sockets[0];
+  if (!socket) {
+    throw new Error("public socket was not created");
+  }
+  socket.open();
+  socket.message({
+    e: "notDepthUpdate",
+    E: 1_787_622_187_101,
+    T: 1_787_622_187_100,
+    s: "BTCUSDT",
+    U: 101,
+    u: 101,
+    pu: 100,
+    b: [],
+    a: [],
+  });
+  await flushAsync();
+
+  const rawRecord = evidence.records.find(
+    (record) =>
+      record.schema_version ===
+      "glitch.crypto.binance-usdm-stream-evidence.v2",
+  );
+  const errorRecord = evidence.records.find((record) => record.kind === "error");
+  if (!rawRecord || !errorRecord) {
+    throw new Error("malformed depth evidence was not recorded");
+  }
+  assert.equal(rawRecord.provenance.provider_sequence.event_type, "notDepthUpdate");
+  assert.ok(evidence.records.indexOf(rawRecord) < evidence.records.indexOf(errorRecord));
+  assert.equal(supervisor.status().public.state, "backoff");
   await supervisor.stop();
 });
 

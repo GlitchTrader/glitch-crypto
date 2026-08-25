@@ -9,7 +9,11 @@ npm run build
 npm run binance:stream -- public
 ```
 
-The supervisor buffers diff-depth messages, obtains a REST snapshot, establishes sequence continuity, and reconnects from a new snapshot after any gap.
+The supervisor retains each exact diff-depth WebSocket frame and receive
+provenance before strict identity parsing, buffers valid deltas, obtains a REST
+snapshot, establishes sequence continuity, and reconnects from a new snapshot
+after any gap or malformed identity. The snapshot is retained as parsed
+evidence; this path does not claim its original HTTP response bytes.
 
 ## Public plus private account observation
 
@@ -49,7 +53,11 @@ routes itself: depth under `/public`, regular market streams under `/market`,
 and listen-key user data under `/private`. Do not put a route path in the
 environment value.
 
-The writer maintains one active file and one `.1` backup. Every record has a session ID and sequence. Credentials, signatures, tokens, sensitive-key fields, and active listen keys are redacted.
+The writer maintains one active file and one `.1` backup. Every record has a
+session ID and sequence. Public depth WebSocket messages use version 2 with the
+exact frame, SHA-256, connection ID, dual receive clocks, provider sequence,
+and inspection version. Credentials, signatures, tokens, sensitive-key fields,
+and active listen keys are redacted.
 
 ## Replay
 

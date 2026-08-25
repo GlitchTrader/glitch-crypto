@@ -8,8 +8,8 @@ import {
 } from "node:fs";
 import { dirname } from "node:path";
 import { inspectBinanceMarketEvent } from "./market-events.js";
+import { verifyBinanceRawFrame } from "./raw-frame-evidence.js";
 import { readBinanceStreamEvidenceJsonl } from "./stream-replay.js";
-import { unwrapBinanceStreamPayload } from "./stream-common.js";
 import type {
   BinanceStreamEvidenceRecord,
   BinanceStreamEvidenceRecordV2,
@@ -421,30 +421,26 @@ function verifyRawMarketRecord(
   receive_time_monotonic: boolean;
 } {
   const provenance = record.provenance;
-  const hashMatches = createHash("sha256")
-    .update(provenance.raw_frame)
-    .digest("hex") === provenance.raw_frame_sha256;
-  let payloadMatches = false;
-  try {
-    payloadMatches = JSON.stringify(
-      unwrapBinanceStreamPayload(provenance.raw_frame),
-    ) === JSON.stringify(record.payload);
-  } catch {
-    payloadMatches = record.payload === null;
-  }
+  const raw = verifyBinanceRawFrame(
+    record,
+    {
+      channel: "public-market",
+      instrument: symbol,
+      normalization_version: "binance-usdm-market-inspection.v1",
+    },
+    connectionIds,
+    previousMonotonicReceiveNs,
+  );
   const identityMatches = event === null
     ? provenance.exchange_timestamp_ms === null &&
       provenance.provider_sequence.event_type === null
     : rawIdentityMatches(record, event, symbol);
-  const monotonic = BigInt(provenance.monotonic_receive_ns);
   return {
-    hash_matches: hashMatches,
-    payload_matches: payloadMatches,
-    identity_matches: identityMatches,
-    connection_attributed: connectionIds.has(provenance.connection_id),
-    receive_time_monotonic:
-      previousMonotonicReceiveNs === null ||
-      monotonic > previousMonotonicReceiveNs,
+    hash_matches: raw.hash_matches,
+    payload_matches: raw.payload_matches,
+    identity_matches: raw.authority_matches && identityMatches,
+    connection_attributed: raw.connection_attributed,
+    receive_time_monotonic: raw.receive_time_monotonic,
   };
 }
 

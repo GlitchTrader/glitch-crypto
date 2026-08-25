@@ -300,7 +300,7 @@ export class BinanceMarketStreamRecorder {
       connection_id: connectionId,
       local_receive_timestamp_ms: localReceiveTimestampMs,
       monotonic_receive_ns: monotonicReceiveNs,
-      exchange_timestamp_ms: providerSequence.event_time_ms,
+      exchange_timestamp_ms: positiveInteger(providerSequence.event_time_ms),
       provider_sequence: providerSequence,
       normalization_version: "binance-usdm-market-inspection.v1",
       raw_frame: rawFrame,
@@ -330,6 +330,10 @@ function describeProviderSequence(
     first_trade_id: aggregateTrade ? safeInteger(record.f) : null,
     last_trade_id: aggregateTrade ? safeInteger(record.l) : null,
     trade_time_ms: aggregateTrade ? safeInteger(record.T) : null,
+    first_update_id: null,
+    final_update_id: null,
+    previous_final_update_id: null,
+    transaction_time_ms: null,
   };
 }
 
@@ -337,4 +341,8 @@ function safeInteger(value: unknown): number | null {
   return Number.isSafeInteger(value) && (value as number) >= 0
     ? value as number
     : null;
+}
+
+function positiveInteger(value: number | null): number | null {
+  return value !== null && value > 0 ? value : null;
 }

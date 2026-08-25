@@ -73,6 +73,14 @@ test("public runtime evidence is accepted only when the finite session replays r
       { minimumMessages: 2 },
     );
     assert.equal(report.accepted_for_public_replay, true);
+    assert.equal(report.accepted_for_depth_frame_replay, false);
+    assert.equal(report.depth_provenance.legacy_message_records, 2);
+    assert.equal(
+      report.depth_frame_rejection_reasons.includes(
+        "legacy_depth_message_records:2",
+      ),
+      true,
+    );
     assert.equal(report.rejection_reasons.length, 0);
     assert.equal(report.sequence_contiguous, true);
     assert.equal(report.timestamps_monotonic, true);
@@ -144,6 +152,108 @@ test("public evidence rejects sequence corruption and private records", () => {
   }
 });
 
+test("replay-grade public evidence verifies exact depth frames and rejects provenance tampering", () => {
+  const path = testEvidencePath(`glitch-binance-public-v2-${randomUUID()}.jsonl`);
+  let evidenceNow = 1_787_622_186_000;
+  try {
+    const sink = new JsonlBinanceStreamEvidenceSink(path, {
+      now: () => (evidenceNow += 100),
+    });
+    const connectionId = "depth-connection-replay-0001";
+    const first = observedDepthDelta(101, 100, [["60000", "2"]], []);
+    const second = observedDepthDelta(102, 101, [], [["60001", "3"]]);
+    sink.record("supervisor", "transition", {
+      action: "start",
+      symbol: "BTCUSDT",
+      private_enabled: false,
+      mutation_authority: false,
+    });
+    sink.record("public-depth", "transition", {
+      state: "connecting",
+      epoch: 1,
+      connection_id: connectionId,
+    });
+    sink.record(
+      "public-depth",
+      "message",
+      first,
+      depthFrame(first, connectionId, "10000000"),
+    );
+    sink.record("public-depth", "snapshot", {
+      lastUpdateId: 100,
+      bids: [["60000", "1"]],
+      asks: [["60001", "1"]],
+    });
+    sink.record("public-depth", "transition", {
+      state: "running",
+      epoch: 1,
+      connection_id: connectionId,
+      update_id: 101,
+    });
+    sink.record(
+      "public-depth",
+      "message",
+      second,
+      depthFrame(second, connectionId, "10001000"),
+    );
+    sink.record("public-depth", "transition", { state: "stopped", epoch: 2 });
+    sink.record("supervisor", "transition", { action: "stop", symbol: "BTCUSDT" });
+
+    const report = verifyBinancePublicEvidence(path, { minimumMessages: 2 });
+    assert.equal(report.accepted_for_public_replay, true);
+    assert.equal(report.accepted_for_depth_frame_replay, true);
+    assert.equal(report.depth_provenance.legacy_message_records, 0);
+    assert.equal(report.depth_provenance.replay_grade_message_records, 2);
+    assert.deepEqual(report.depth_provenance.connection_ids, [connectionId]);
+    assert.equal(report.depth_provenance.raw_hash_mismatches, 0);
+    assert.equal(report.depth_provenance.raw_payload_mismatches, 0);
+    assert.equal(report.depth_provenance.provider_identity_mismatches, 0);
+    assert.equal(report.depth_provenance.unattributed_connection_records, 0);
+    assert.equal(report.depth_provenance.non_monotonic_receive_times, 0);
+
+    const originalLines = readFileSync(path, "utf8")
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const tamperedHash = verifyTamperedPublicEvidence(path, originalLines, (messages) => {
+      const provenance = messages[0]?.provenance as Record<string, unknown>;
+      const hash = String(provenance.raw_frame_sha256);
+      provenance.raw_frame_sha256 = `${hash[0] === "0" ? "1" : "0"}${hash.slice(1)}`;
+    });
+    assert.equal(tamperedHash.accepted_for_depth_frame_replay, false);
+    assert.equal(tamperedHash.depth_provenance.raw_hash_mismatches, 1);
+
+    const tamperedPayload = verifyTamperedPublicEvidence(path, originalLines, (messages) => {
+      const payload = messages[0]?.payload as Record<string, unknown>;
+      payload.s = "ETHUSDT";
+    });
+    assert.equal(tamperedPayload.depth_provenance.raw_payload_mismatches, 1);
+
+    const tamperedClock = verifyTamperedPublicEvidence(path, originalLines, (messages) => {
+      const firstProvenance = messages[0]?.provenance as Record<string, unknown>;
+      const secondProvenance = messages[1]?.provenance as Record<string, unknown>;
+      secondProvenance.monotonic_receive_ns = firstProvenance.monotonic_receive_ns;
+    });
+    assert.equal(tamperedClock.depth_provenance.non_monotonic_receive_times, 1);
+
+    const tamperedConnection = verifyTamperedPublicEvidence(path, originalLines, (messages) => {
+      const provenance = messages[0]?.provenance as Record<string, unknown>;
+      provenance.connection_id = "depth-connection-unobserved";
+    });
+    assert.equal(tamperedConnection.depth_provenance.unattributed_connection_records, 1);
+
+    const tamperedIdentity = verifyTamperedPublicEvidence(path, originalLines, (messages) => {
+      const provenance = messages[0]?.provenance as Record<string, unknown>;
+      const sequence = provenance.provider_sequence as Record<string, unknown>;
+      sequence.final_update_id = Number(sequence.final_update_id) + 1;
+    });
+    assert.equal(tamperedIdentity.depth_provenance.provider_identity_mismatches, 1);
+  } finally {
+    rmSync(path, { force: true });
+    rmSync(`${path}.1`, { force: true });
+  }
+});
+
 test("the frozen observed Testnet fixture remains checksum-bound and replay-ready", () => {
   const report = verifyBinancePublicEvidence(
     "tests/fixtures/binance-usdm/observed-testnet-public.jsonl",
@@ -151,6 +261,8 @@ test("the frozen observed Testnet fixture remains checksum-bound and replay-read
   );
 
   assert.equal(report.accepted_for_public_replay, true);
+  assert.equal(report.accepted_for_depth_frame_replay, false);
+  assert.equal(report.depth_provenance.legacy_message_records, 5);
   assert.equal(
     report.evidence_sha256,
     "0b1053f5607bfc9354e4744f993f42637dada8902b5982f69319c5b279dd2ab7",
@@ -165,6 +277,106 @@ test("the frozen observed Testnet fixture remains checksum-bound and replay-read
   assert.equal(report.replay.gap_reason, null);
 });
 
+test("the frozen observed Testnet depth fixture is replay-grade and checksum-bound", () => {
+  const report = verifyBinancePublicEvidence(
+    "operations/evidence/GC-002/binance-testnet-depth-provenance-2026-08-25.jsonl",
+    { minimumMessages: 25 },
+  );
+
+  assert.equal(report.accepted_for_public_replay, true);
+  assert.equal(report.accepted_for_depth_frame_replay, true);
+  assert.equal(
+    report.evidence_sha256,
+    "99c1ac43c95bb7e1890a6feca7e028ebf3ed0da3e40bcf0568db3279cc232467",
+  );
+  assert.equal(report.record_count, 34);
+  assert.equal(report.counts.public_messages, 27);
+  assert.equal(report.counts.public_errors, 0);
+  assert.equal(report.counts.public_backoff_transitions, 0);
+  assert.equal(report.depth_provenance.legacy_message_records, 0);
+  assert.equal(report.depth_provenance.replay_grade_message_records, 27);
+  assert.equal(report.depth_provenance.connection_ids.length, 1);
+  assert.equal(report.depth_provenance.raw_hash_mismatches, 0);
+  assert.equal(report.depth_provenance.raw_payload_mismatches, 0);
+  assert.equal(report.depth_provenance.provider_identity_mismatches, 0);
+  assert.equal(report.depth_provenance.unattributed_connection_records, 0);
+  assert.equal(report.depth_provenance.non_monotonic_receive_times, 0);
+  assert.equal(report.replay.order_book_status, "ready");
+  assert.equal(report.replay.update_id, 410_738_930_139);
+  assert.deepEqual(report.replay.best_bid, ["80770.00", "27.1156"]);
+  assert.deepEqual(report.replay.best_ask, ["80781.20", "0.1313"]);
+});
+
 function testEvidencePath(filename: string): string {
   return resolve("artifacts", "tests", filename);
+}
+
+function observedDepthDelta(
+  updateId: number,
+  previousUpdateId: number,
+  bids: string[][],
+  asks: string[][],
+): Record<string, unknown> {
+  return {
+    e: "depthUpdate",
+    E: 1_787_622_187_000 + updateId,
+    T: 1_787_622_186_000 + updateId,
+    s: "BTCUSDT",
+    U: updateId,
+    u: updateId,
+    pu: previousUpdateId,
+    b: bids,
+    a: asks,
+  };
+}
+
+function depthFrame(
+  payload: Record<string, unknown>,
+  connectionId: string,
+  monotonicReceiveNs: string,
+) {
+  return {
+    venue: "BINANCE_USDM" as const,
+    instrument: "BTCUSDT",
+    channel: "public-depth" as const,
+    connection_id: connectionId,
+    local_receive_timestamp_ms: 1_787_622_187_500,
+    monotonic_receive_ns: monotonicReceiveNs,
+    exchange_timestamp_ms: payload.E as number,
+    provider_sequence: {
+      event_type: payload.e as string,
+      event_time_ms: payload.E as number,
+      aggregate_trade_id: null,
+      first_trade_id: null,
+      last_trade_id: null,
+      trade_time_ms: null,
+      first_update_id: payload.U as number,
+      final_update_id: payload.u as number,
+      previous_final_update_id: payload.pu as number,
+      transaction_time_ms: payload.T as number,
+    },
+    normalization_version: "binance-usdm-depth-inspection.v1" as const,
+    raw_frame: JSON.stringify(payload),
+  };
+}
+
+function verifyTamperedPublicEvidence(
+  path: string,
+  originalLines: readonly Record<string, unknown>[],
+  mutate: (messages: Record<string, unknown>[]) => void,
+) {
+  const lines = JSON.parse(JSON.stringify(originalLines)) as Record<string, unknown>[];
+  const messages = lines.filter(
+    (record) =>
+      record.schema_version ===
+      "glitch.crypto.binance-usdm-stream-evidence.v2",
+  );
+  mutate(messages);
+  rmSync(path, { force: true });
+  appendFileSync(
+    path,
+    `${lines.map((line) => JSON.stringify(line)).join("\n")}\n`,
+    { encoding: "utf8" },
+  );
+  return verifyBinancePublicEvidence(path, { minimumMessages: 2 });
 }

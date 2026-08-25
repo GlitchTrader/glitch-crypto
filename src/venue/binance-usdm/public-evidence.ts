@@ -8,10 +8,18 @@ import {
 } from "node:fs";
 import { dirname } from "node:path";
 import {
+  parseBinanceDepthDelta,
+  type BinanceDepthDelta,
+} from "./order-book.js";
+import { verifyBinanceRawFrame } from "./raw-frame-evidence.js";
+import {
   readBinanceStreamEvidenceJsonl,
   replayBinanceStreamEvidence,
 } from "./stream-replay.js";
-import type { BinanceStreamEvidenceRecord } from "./stream-evidence.js";
+import type {
+  BinanceStreamEvidenceRecord,
+  BinanceStreamEvidenceRecordV2,
+} from "./stream-evidence.js";
 
 export interface BinancePublicEvidenceCounts {
   supervisor_transitions: number;
@@ -19,16 +27,19 @@ export interface BinancePublicEvidenceCounts {
   public_snapshots: number;
   public_messages: number;
   public_errors: number;
+  public_backoff_transitions: number;
   private_records: number;
   other_records: number;
 }
 
 export interface BinancePublicEvidenceReport {
-  schema_version: "glitch.crypto.binance-usdm-public-evidence-report.v1";
+  schema_version: "glitch.crypto.binance-usdm-public-evidence-report.v2";
   evidence_sha256: string;
   mutation_authority: false;
   accepted_for_public_replay: boolean;
+  accepted_for_depth_frame_replay: boolean;
   rejection_reasons: string[];
+  depth_frame_rejection_reasons: string[];
   warnings: string[];
   session_ids: string[];
   record_count: number;
@@ -41,6 +52,16 @@ export interface BinancePublicEvidenceReport {
   supervisor_stop_observed: boolean;
   public_running_observed: boolean;
   counts: BinancePublicEvidenceCounts;
+  depth_provenance: {
+    legacy_message_records: number;
+    replay_grade_message_records: number;
+    connection_ids: string[];
+    raw_hash_mismatches: number;
+    raw_payload_mismatches: number;
+    provider_identity_mismatches: number;
+    unattributed_connection_records: number;
+    non_monotonic_receive_times: number;
+  };
   replay: {
     processed_records: number;
     ignored_records: number;
@@ -76,6 +97,7 @@ export function verifyBinancePublicEvidence(
     public_snapshots: 0,
     public_messages: 0,
     public_errors: 0,
+    public_backoff_transitions: 0,
     private_records: 0,
     other_records: 0,
   };
@@ -85,6 +107,16 @@ export function verifyBinancePublicEvidence(
   let supervisorStartObserved = false;
   let supervisorStopObserved = false;
   let publicRunningObserved = false;
+  let expectedSymbol: string | null = null;
+  let legacyMessageRecords = 0;
+  let replayGradeMessageRecords = 0;
+  let rawHashMismatches = 0;
+  let rawPayloadMismatches = 0;
+  let providerIdentityMismatches = 0;
+  let unattributedConnectionRecords = 0;
+  let nonMonotonicReceiveTimes = 0;
+  let lastMonotonicReceiveNs: bigint | null = null;
+  const connectionIds = new Set<string>();
 
   for (const record of records) {
     if (record.channel === "supervisor" && record.kind === "transition") {
@@ -92,6 +124,9 @@ export function verifyBinancePublicEvidence(
       const payload = objectValue(record.payload);
       if (payload.action === "start" && payload.mutation_authority === false) {
         supervisorStartObserved = true;
+        if (typeof payload.symbol === "string") {
+          expectedSymbol = payload.symbol;
+        }
       }
       if (payload.action === "stop") {
         supervisorStopObserved = true;
@@ -105,10 +140,57 @@ export function verifyBinancePublicEvidence(
         if (payload.state === "running") {
           publicRunningObserved = true;
         }
+        if (payload.state === "backoff") {
+          counts.public_backoff_transitions += 1;
+        }
+        if (typeof payload.connection_id === "string") {
+          connectionIds.add(payload.connection_id);
+        }
       } else if (record.kind === "snapshot") {
         counts.public_snapshots += 1;
       } else if (record.kind === "message") {
         counts.public_messages += 1;
+        if (
+          record.schema_version ===
+            "glitch.crypto.binance-usdm-stream-evidence.v2"
+        ) {
+          replayGradeMessageRecords += 1;
+          const raw = verifyBinanceRawFrame(
+            record,
+            {
+              channel: "public-depth",
+              instrument: expectedSymbol ?? record.provenance.instrument,
+              normalization_version: "binance-usdm-depth-inspection.v1",
+            },
+            connectionIds,
+            lastMonotonicReceiveNs,
+          );
+          let identityMatches = false;
+          try {
+            identityMatches = depthIdentityMatches(
+              record,
+              parseBinanceDepthDelta(record.payload),
+              expectedSymbol,
+            );
+          } catch {
+            identityMatches =
+              record.payload === null &&
+              record.provenance.exchange_timestamp_ms === null &&
+              record.provenance.provider_sequence.event_type === null;
+          }
+          rawHashMismatches += Number(!raw.hash_matches);
+          rawPayloadMismatches += Number(!raw.payload_matches);
+          providerIdentityMismatches += Number(
+            !raw.authority_matches || !identityMatches,
+          );
+          unattributedConnectionRecords += Number(!raw.connection_attributed);
+          nonMonotonicReceiveTimes += Number(!raw.receive_time_monotonic);
+          lastMonotonicReceiveNs = BigInt(
+            record.provenance.monotonic_receive_ns,
+          );
+        } else {
+          legacyMessageRecords += 1;
+        }
       } else if (record.kind === "error") {
         counts.public_errors += 1;
       } else {
@@ -158,6 +240,27 @@ export function verifyBinancePublicEvidence(
   if (counts.public_errors > 0) {
     warnings.push(`public_errors_observed:${counts.public_errors}`);
   }
+  if (rawHashMismatches > 0) {
+    rejectionReasons.push(`raw_frame_hash_mismatches:${rawHashMismatches}`);
+  }
+  if (rawPayloadMismatches > 0) {
+    rejectionReasons.push(`raw_frame_payload_mismatches:${rawPayloadMismatches}`);
+  }
+  if (providerIdentityMismatches > 0) {
+    rejectionReasons.push(
+      `depth_provider_identity_mismatches:${providerIdentityMismatches}`,
+    );
+  }
+  if (unattributedConnectionRecords > 0) {
+    rejectionReasons.push(
+      `unattributed_connection_records:${unattributedConnectionRecords}`,
+    );
+  }
+  if (nonMonotonicReceiveTimes > 0) {
+    rejectionReasons.push(
+      `non_monotonic_receive_times:${nonMonotonicReceiveTimes}`,
+    );
+  }
 
   let replay: ReturnType<typeof replayBinanceStreamEvidence> | null = null;
   try {
@@ -187,13 +290,49 @@ export function verifyBinancePublicEvidence(
     ? Date.parse(lastRecordedUtc) - Date.parse(firstRecordedUtc)
     : null;
   const orderBook = replay?.public_order_book;
+  const acceptedForPublicReplay = rejectionReasons.length === 0;
+  const depthFrameRejectionReasons: string[] = [];
+  if (legacyMessageRecords > 0) {
+    depthFrameRejectionReasons.push(
+      `legacy_depth_message_records:${legacyMessageRecords}`,
+    );
+  }
+  if (replayGradeMessageRecords === 0) {
+    depthFrameRejectionReasons.push("replay_grade_depth_messages_missing");
+  }
+  if (expectedSymbol === null) {
+    depthFrameRejectionReasons.push("public_symbol_not_observed");
+  }
+  if (counts.public_errors > 0) {
+    depthFrameRejectionReasons.push(
+      `public_errors_observed:${counts.public_errors}`,
+    );
+  }
+  if (counts.public_backoff_transitions > 0) {
+    depthFrameRejectionReasons.push(
+      `public_backoff_observed:${counts.public_backoff_transitions}`,
+    );
+  }
+  depthFrameRejectionReasons.push(
+    ...rejectionReasons.filter((reason) =>
+      reason.startsWith("raw_frame_") ||
+      reason.startsWith("depth_provider_") ||
+      reason.startsWith("unattributed_connection_") ||
+      reason.startsWith("non_monotonic_receive_"),
+    ),
+  );
 
   return {
-    schema_version: "glitch.crypto.binance-usdm-public-evidence-report.v1",
+    schema_version: "glitch.crypto.binance-usdm-public-evidence-report.v2",
     evidence_sha256: evidenceSha256(evidencePath),
     mutation_authority: false,
-    accepted_for_public_replay: rejectionReasons.length === 0,
+    accepted_for_public_replay: acceptedForPublicReplay,
+    accepted_for_depth_frame_replay:
+      acceptedForPublicReplay && depthFrameRejectionReasons.length === 0,
     rejection_reasons: rejectionReasons,
+    depth_frame_rejection_reasons: [
+      ...new Set(depthFrameRejectionReasons),
+    ],
     warnings,
     session_ids: sessionIds,
     record_count: records.length,
@@ -206,6 +345,16 @@ export function verifyBinancePublicEvidence(
     supervisor_stop_observed: supervisorStopObserved,
     public_running_observed: publicRunningObserved,
     counts,
+    depth_provenance: {
+      legacy_message_records: legacyMessageRecords,
+      replay_grade_message_records: replayGradeMessageRecords,
+      connection_ids: [...connectionIds].sort(),
+      raw_hash_mismatches: rawHashMismatches,
+      raw_payload_mismatches: rawPayloadMismatches,
+      provider_identity_mismatches: providerIdentityMismatches,
+      unattributed_connection_records: unattributedConnectionRecords,
+      non_monotonic_receive_times: nonMonotonicReceiveTimes,
+    },
     replay: {
       processed_records: replay?.processed_records ?? 0,
       ignored_records: replay?.ignored_records ?? 0,
@@ -287,4 +436,27 @@ function objectValue(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function depthIdentityMatches(
+  record: BinanceStreamEvidenceRecordV2,
+  delta: BinanceDepthDelta,
+  expectedSymbol: string | null,
+): boolean {
+  const provenance = record.provenance;
+  const sequence = provenance.provider_sequence;
+  return (
+    sequence.event_type === "depthUpdate" &&
+    (expectedSymbol === null || delta.s === expectedSymbol) &&
+    provenance.exchange_timestamp_ms === (delta.E ?? null) &&
+    sequence.event_time_ms === (delta.E ?? null) &&
+    sequence.first_update_id === delta.U &&
+    sequence.final_update_id === delta.u &&
+    sequence.previous_final_update_id === (delta.pu ?? null) &&
+    sequence.transaction_time_ms === (delta.T ?? null) &&
+    sequence.aggregate_trade_id === null &&
+    sequence.first_trade_id === null &&
+    sequence.last_trade_id === null &&
+    sequence.trade_time_ms === null
+  );
 }

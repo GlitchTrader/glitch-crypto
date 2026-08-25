@@ -11,6 +11,13 @@ import {
 } from "./private-state.js";
 import type { BinanceStreamEvidenceRecord } from "./stream-evidence.js";
 
+const backwardCompatibleDepthSequenceKeys = new Set([
+  "first_update_id",
+  "final_update_id",
+  "previous_final_update_id",
+  "transaction_time_ms",
+]);
+
 export interface BinanceStreamReplayResult {
   schema_version: "glitch.crypto.binance-usdm-stream-replay.v1";
   processed_records: number;
@@ -144,16 +151,19 @@ function parseRecord(value: unknown, line: number): BinanceStreamEvidenceRecord 
     throw new Error(`invalid evidence kind at line ${line}`);
   }
   if (record.schema_version === "glitch.crypto.binance-usdm-stream-evidence.v2") {
-    validateRawMarketRecord(record, line);
+    validateRawFrameRecord(record, line);
   }
   return record as unknown as BinanceStreamEvidenceRecord;
 }
 
-function validateRawMarketRecord(
+function validateRawFrameRecord(
   record: Record<string, unknown>,
   line: number,
 ): void {
-  if (record.channel !== "public-market" || record.kind !== "message") {
+  if (
+    !new Set(["public-market", "public-depth"]).has(String(record.channel)) ||
+    record.kind !== "message"
+  ) {
     throw new Error(`invalid version-2 evidence authority at line ${line}`);
   }
   const provenance = objectValue(
@@ -162,7 +172,7 @@ function validateRawMarketRecord(
   );
   if (
     provenance.venue !== "BINANCE_USDM" ||
-    provenance.channel !== "public-market" ||
+    provenance.channel !== record.channel ||
     typeof provenance.instrument !== "string" ||
     !/^[A-Z0-9]{5,24}$/.test(provenance.instrument) ||
     typeof provenance.connection_id !== "string" ||
@@ -171,7 +181,11 @@ function validateRawMarketRecord(
     (provenance.local_receive_timestamp_ms as number) <= 0 ||
     typeof provenance.monotonic_receive_ns !== "string" ||
     !/^[1-9]\d*$/.test(provenance.monotonic_receive_ns) ||
-    provenance.normalization_version !== "binance-usdm-market-inspection.v1" ||
+    provenance.normalization_version !== (
+      record.channel === "public-market"
+        ? "binance-usdm-market-inspection.v1"
+        : "binance-usdm-depth-inspection.v1"
+    ) ||
     typeof provenance.raw_frame !== "string" ||
     provenance.raw_frame.length === 0 ||
     !/^[a-f0-9]{64}$/.test(String(provenance.raw_frame_sha256))
@@ -195,8 +209,18 @@ function validateRawMarketRecord(
     "first_trade_id",
     "last_trade_id",
     "trade_time_ms",
+    "first_update_id",
+    "final_update_id",
+    "previous_final_update_id",
+    "transaction_time_ms",
   ]) {
     const value = providerSequence[key];
+    if (
+      value === undefined &&
+      backwardCompatibleDepthSequenceKeys.has(key)
+    ) {
+      continue;
+    }
     if (
       value !== null &&
       (!Number.isSafeInteger(value) || (value as number) < 0)

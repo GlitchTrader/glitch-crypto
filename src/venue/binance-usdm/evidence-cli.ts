@@ -76,7 +76,11 @@ if (command === "capture-public") {
     final_status: finalStatus,
     report,
   }, null, 2));
-  const exitCode = report.accepted_for_public_replay ? 0 : 1;
+  const exitCode =
+    report.accepted_for_public_replay &&
+    report.accepted_for_depth_frame_replay
+      ? 0
+      : 1;
   process.exitCode = exitCode;
   setTimeout(() => {
     process.exit(exitCode);
@@ -84,7 +88,10 @@ if (command === "capture-public") {
 } else if (command === "verify-public") {
   const report = verifyBinancePublicEvidence(evidencePath, { minimumMessages });
   console.log(JSON.stringify(report, null, 2));
-  if (!report.accepted_for_public_replay) {
+  if (
+    !report.accepted_for_public_replay ||
+    !report.accepted_for_depth_frame_replay
+  ) {
     process.exitCode = 1;
   }
 } else {
