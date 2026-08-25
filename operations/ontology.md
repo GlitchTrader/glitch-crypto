@@ -50,6 +50,16 @@ risk inputs plus stable blockers, but contains no credential, transport client,
 signer, mutation handle, or engine-binding authority. `ready` means its supplied
 Testnet observations are coherent and fresh; it does not authorize an effect.
 
+### ProtectedEntryPlan
+
+Immutable non-authorizing compilation of a fresh `VenueExecutionContext`, UTC
+daily risk state, operator policy, and requested direction/stop/target into one
+exact protected-entry request plus attributable risk evidence. Deterministic
+code owns executable-side price, final quantity, venue precision/minimums,
+leverage, fees, cost stress, margin, daily loss, and active-floor enforcement.
+The daily objective is reported and may activate a floor, but never supplies
+trade geometry or a reason to trade.
+
 ### UsablePot
 
 A sizing cap:

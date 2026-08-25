@@ -71,3 +71,24 @@ staleness, stream degradation, pending reconciliation, unowned exposure/order,
 or any symbol, direction, quantity, geometry, or identity mismatch. The output
 is deeply frozen, selected-field only, credential-free, and still declares
 `mutation_authority=false` and `engine_binding_authority=false`.
+
+## Venue-exact protected-entry plan
+
+Phase O consumes a fresh ready execution context, current operator policy, UTC
+daily state, and requested direction/stop/target. It uses best ask for LONG and
+best bid for SHORT, validates tick geometry, derives final quantity on the least
+common venue/policy step, and applies the stricter of configured round-trip cost
+or the authenticated venue taker-fee round trip plus stressed exit cost.
+
+Sizing floors balances and risk budget while rounding notional, margin, and
+planned loss conservatively upward. It enforces usable-pot, available-margin,
+trade/open-risk, daily-loss, and active-floor boundaries. Current equity can
+activate the daily floor during compilation, closing the handoff window before
+that floor is persisted. Changing the daily target changes reporting/floor
+semantics only; it cannot change stop, target, or quantity geometry for the same
+risk inputs.
+
+The resulting `ProtectedEntryPlan` contains a canonical request only when every
+gate passes and still declares `mutation_authority=false` and
+`engine_binding_authority=false`. It is input to a later bounded async
+orchestrator, never a transport command.
