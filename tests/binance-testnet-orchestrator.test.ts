@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { bodyHash } from "../src/domain/canonical-json.js";
 import { GlitchDatabase } from "../src/storage/database.js";
 import type { BinanceUsdmProtectedEntryPlan } from "../src/venue/binance-usdm/entry-plan.js";
+import type { BinanceUsdmProtectionManagementPlan } from "../src/venue/binance-usdm/management-plan.js";
 import {
   deriveBinanceUsdmMutationIds,
   deriveBinanceUsdmProtectionRevisionIds,
@@ -119,6 +120,77 @@ test("ready owned binding closes only after durable staging", async () => {
   assert.equal(outcome.ownership.state.current, null);
   assert.equal(outcome.ownership.state.pending, null);
   database.close();
+});
+
+test("ready management plan stages and completes one proof-bound protection revision", async () => {
+  const database = new GlitchDatabase(":memory:");
+  const repository = new BinanceUsdmOwnedProtectionRepository(database);
+  const opened = repository.save(0, openState());
+  const binding = readyBinding(opened);
+  const plan = readyManagementPlan(binding);
+  let observedPending = false;
+  const effects = fakeEffects({
+    reviseProtection: async (request) => {
+      observedPending = repository.load().state.pending?.kind === "protection_revision";
+      assert.deepEqual(request, revisionRequest());
+      return revisionResult();
+    },
+  });
+
+  const outcome = await createOrchestrator(repository, effects).executeProtectionRevision(
+    plan,
+    permit("protection_revision", REVISION_INTENT, "0.01", plan),
+  );
+
+  assert.equal(observedPending, true);
+  assert.equal(outcome.result.state, "revision_protected");
+  assert.equal(outcome.ownership.state.current?.stopPrice, "59900");
+  assert.equal(outcome.ownership.state.pending, null);
+  database.close();
+});
+
+test("revision effect failure remains pending and a stale management proof cannot stage", async () => {
+  const database = new GlitchDatabase(":memory:");
+  const repository = new BinanceUsdmOwnedProtectionRepository(database);
+  const opened = repository.save(0, openState());
+  const binding = readyBinding(opened);
+  const plan = readyManagementPlan(binding);
+  await assert.rejects(
+    () => createOrchestrator(repository, fakeEffects({
+      reviseProtection: async () => { throw new Error("revision_disconnect"); },
+    })).executeProtectionRevision(
+      plan,
+      permit("protection_revision", REVISION_INTENT, "0.01", plan),
+    ),
+    /revision_disconnect/,
+  );
+  assert.equal(repository.load().state.pending?.kind, "protection_revision");
+  database.close();
+
+  const staleDatabase = new GlitchDatabase(":memory:");
+  const staleRepository = new BinanceUsdmOwnedProtectionRepository(staleDatabase);
+  const staleOpened = staleRepository.save(0, openState());
+  const staleBinding = readyBinding(staleOpened);
+  const stalePlan = readyManagementPlan(staleBinding);
+  staleRepository.save(staleOpened.storage_version, {
+    ...staleOpened.state,
+    transition_sequence: staleOpened.state.transition_sequence + 1,
+  });
+  let effectsCalled = 0;
+  await assert.rejects(
+    () => createOrchestrator(staleRepository, fakeEffects({
+      reviseProtection: async () => {
+        effectsCalled += 1;
+        return revisionResult();
+      },
+    })).executeProtectionRevision(
+      stalePlan,
+      permit("protection_revision", REVISION_INTENT, "0.01", stalePlan),
+    ),
+    /stale relative to durable state/,
+  );
+  assert.equal(effectsCalled, 0);
+  staleDatabase.close();
 });
 
 test("failed close and pending revision recover through their exact query ports", async () => {
@@ -312,8 +384,69 @@ function fakeEffects(
     createProtectedEntry: patch.createProtectedEntry ?? unexpected,
     reconcileProtectedEntry: patch.reconcileProtectedEntry ?? unexpected,
     closeOwnedProtection: patch.closeOwnedProtection ?? unexpected,
+    reviseProtection: patch.reviseProtection ?? unexpected,
     reconcileOwnedProtectionClose: patch.reconcileOwnedProtectionClose ?? unexpected,
     reconcileProtectionRevision: patch.reconcileProtectionRevision ?? unexpected,
+  };
+}
+
+function readyManagementPlan(
+  binding: BinanceUsdmOwnedProtectionBinding,
+): BinanceUsdmProtectionManagementPlan {
+  return {
+    schema_version: "glitch.crypto.binance-usdm-protection-management-plan.v1",
+    venue: "binance-usdm",
+    environment: "testnet",
+    status: "ready",
+    mutation_authority: false,
+    engine_binding_authority: false,
+    observed_utc: new Date(NOW - 100).toISOString(),
+    binding_observed_utc: binding.observed_utc,
+    evidence_observed_utc: new Date(NOW - 100).toISOString(),
+    binding_state_body_hash: binding.state_body_hash,
+    binding_transition_sequence: binding.transition_sequence,
+    request: revisionRequest(),
+    account: {
+      wallet_balance_cents: 100_000,
+      unrealized_pnl_cents: 0,
+      equity_cents: 100_000,
+      projected_equity_cents: 100_000,
+      leverage: 3,
+    },
+    market: {
+      mark_price: "60000",
+      best_bid: "59999.9",
+      best_ask: "60000.1",
+      reduction_executable_price: "59999.9",
+    },
+    risk: {
+      usable_pot_cents: 100_000,
+      daily_start_pot_cents: 100_000,
+      daily_target_profit_cents: 500,
+      daily_loss_boundary_cents: 98_000,
+      active_floor_cents: null,
+      current_protected_equity_cents: 99_900,
+      projected_protected_equity_cents: 99_950,
+      current_open_risk_cents: 100,
+      projected_open_risk_cents: 50,
+      maximum_open_risk_cents: 2_000,
+      reduction_realized_pnl_cents: null,
+      reduction_cost_cents: null,
+      venue_round_trip_cost_bps: 10,
+      applied_exit_cost_bps: 15,
+    },
+    precision: {
+      tick_size: "0.1",
+      venue_quantity_step: "0.001",
+      effective_quantity_step: "0.001",
+      venue_minimum_quantity: "0.001",
+      venue_minimum_notional_cents: 500,
+      effective_minimum_notional_cents: 500,
+      requested_reduction_bps: null,
+      derived_reduction_quantity: null,
+      remaining_quantity: "0.01",
+    },
+    blockers: [],
   };
 }
 

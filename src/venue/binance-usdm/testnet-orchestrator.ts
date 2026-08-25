@@ -1,5 +1,6 @@
 import { bodyHash } from "../../domain/canonical-json.js";
 import type { BinanceUsdmProtectedEntryPlan } from "./entry-plan.js";
+import type { BinanceUsdmProtectionManagementPlan } from "./management-plan.js";
 import {
   canonicalPositiveDecimal,
   type BinanceUsdmOwnedProtectionCloseRequest,
@@ -13,6 +14,7 @@ import {
   BinanceUsdmOwnedProtectionRepository,
   stageBinanceUsdmOwnedProtectionClose,
   stageBinanceUsdmProtectedEntry,
+  stageBinanceUsdmProtectionRevision,
   type BinanceUsdmOwnedProtectionBinding,
   type BinanceUsdmOwnedProtectionSnapshot,
 } from "./owned-protection-state.js";
@@ -27,6 +29,7 @@ const MAXIMUM_PERMIT_LIFETIME_MS = 5 * 60_000;
 
 export type BinanceUsdmTestnetPermitAction =
   | "protected_entry"
+  | "protection_revision"
   | "owned_position_close";
 
 export interface BinanceUsdmTestnetMutationPermit {
@@ -52,6 +55,9 @@ export interface BinanceUsdmTestnetExecutionEffects {
   closeOwnedProtection(
     request: BinanceUsdmOwnedProtectionCloseRequest,
   ): Promise<BinanceUsdmOwnedProtectionCloseResult>;
+  reviseProtection(
+    request: BinanceUsdmProtectionRevisionRequest,
+  ): Promise<BinanceUsdmProtectionRevisionResult>;
   reconcileOwnedProtectionClose(
     request: BinanceUsdmOwnedProtectionCloseRequest,
   ): Promise<BinanceUsdmOwnedProtectionCloseResult>;
@@ -193,6 +199,59 @@ export class BinanceUsdmTestnetExecutionOrchestrator {
       const completedState = applyBinanceUsdmOwnedProtectionCloseResult(
         staged.state,
         request,
+        result,
+        new Date(this.now()).toISOString(),
+      );
+      return {
+        result,
+        ownership: this.repository.save(staged.storage_version, completedState),
+      };
+    });
+  }
+
+  executeProtectionRevision(
+    plan: BinanceUsdmProtectionManagementPlan,
+    permit: BinanceUsdmTestnetMutationPermit,
+  ): Promise<BinanceUsdmOrchestratedResult<BinanceUsdmProtectionRevisionResult>> {
+    return this.exclusive(async () => {
+      if (
+        plan.schema_version !== "glitch.crypto.binance-usdm-protection-management-plan.v1" ||
+        plan.status !== "ready" ||
+        plan.request === null ||
+        plan.mutation_authority !== false ||
+        plan.engine_binding_authority !== false ||
+        plan.blockers.length > 0
+      ) {
+        throw new Error("protection revision requires a ready non-authorizing management plan");
+      }
+      this.assertFresh(plan.observed_utc, "protection management plan");
+      validatePermit(
+        permit,
+        "protection_revision",
+        plan.request.revisionIntentId,
+        plan.request.current.symbol,
+        plan.request.current.quantity,
+        bodyHash(plan),
+        this.now(),
+      );
+
+      const loaded = this.repository.load();
+      if (
+        bodyHash(loaded.state) !== plan.binding_state_body_hash ||
+        loaded.state.transition_sequence !== plan.binding_transition_sequence
+      ) {
+        throw new Error("protection management plan is stale relative to durable state");
+      }
+      const stagedState = stageBinanceUsdmProtectionRevision(
+        loaded.state,
+        plan.request,
+        new Date(this.now()).toISOString(),
+      );
+      const staged = this.repository.save(loaded.storage_version, stagedState);
+      const result = await this.effects.reviseProtection(plan.request);
+      const completedState = applyBinanceUsdmProtectionRevisionResult(
+        staged.state,
+        plan.request,
         result,
         new Date(this.now()).toISOString(),
       );

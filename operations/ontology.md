@@ -60,6 +60,17 @@ leverage, fees, cost stress, margin, daily loss, and active-floor enforcement.
 The daily objective is reported and may activate a floor, but never supplies
 trade geometry or a reason to trade.
 
+### ProtectionManagementPlan
+
+Immutable non-authorizing compilation of a fresh `OwnedProtectionBinding`, a
+fresh authenticated GET-only Testnet shadow snapshot, UTC daily state,
+operator policy, proposed stop/target geometry, and an optional requested
+reduction percentage. It derives the final partial quantity, executable-side
+price, remaining position, conservative costs, and current/projected protected
+equity. `ready` proves the revision does not weaken total native protection and
+respects venue precision/minimums, maximum open risk, daily loss, and the active
+floor; it is still not a mutation permit.
+
 ### TestnetMutationPermit
 
 Operator-issued, one-intent authorization artifact scoped to Testnet, BTCUSDT,
@@ -70,11 +81,11 @@ later operator-token runtime code owns issuance.
 ### TestnetExecutionOrchestrator
 
 Dormant single-writer coordinator that validates a fresh proof plus permit,
-durably stages the complete request before an entry or full-close effect, and
+durably stages the complete request before an entry, protection-revision, or full-close effect, and
 applies only proof-complete outcomes. Effect interruption leaves pending state;
 restart recovery dispatches the exact GET-only reconciliation contract and does
-not resubmit. Revision execution remains outside this aggregate until its
-management-risk plan is accepted.
+not resubmit. Revision execution requires a `ProtectionManagementPlan`; a bare
+canonical revision request is never sufficient.
 
 ### UsablePot
 
@@ -226,7 +237,7 @@ entry_visibility_pending → filled_unprotected → stop_visibility_pending
                           → open_protected_target_pending → open_protected
 
 Protection revision:
-current_pair_proven → reduction_visibility_pending → replacement_stop_pending
+management_plan_ready → current_pair_proven → reduction_visibility_pending → replacement_stop_pending
                     → replacement_target_pending → old_cleanup_pending
                     → revision_protected
 

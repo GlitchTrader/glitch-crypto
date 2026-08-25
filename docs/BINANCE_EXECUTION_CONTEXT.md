@@ -108,6 +108,30 @@ query contract and applies its proof result; it never blindly resubmits.
 Overlapping operations are rejected in-process and CAS remains the
 cross-instance writer guard.
 
+## Protected-position management plan
+
+The management compiler joins a fresh exact `OwnedProtectionBinding` to a fresh
+credential-free retained output from an authenticated GET-only Testnet shadow
+snapshot. It re-proves one-way isolated BTCUSDT account truth, current position
+identity, wallet and unrealized PnL, top of book, mark price, contract rules,
+leverage, commission, trading permission, and absence of unowned ordinary
+orders.
+
+Cognition may propose next stop/target geometry and a reduction percentage.
+Deterministic code derives the final partial on the least common venue/policy
+step, uses bid for a LONG reduction and ask for a SHORT reduction, prices the
+surviving native stop with conservative authenticated fee and stressed-exit
+cost, and blocks any result that weakens current protected equity or violates
+remaining-position minimums, open risk, daily loss, or the active floor. The
+daily objective may activate a floor only when protected equity secures it; it
+does not choose geometry or activity.
+
+The proof is deeply immutable, selected-field only, and non-authorizing. The
+orchestrator now accepts a protection revision only from this ready plan plus a
+separate permit bound to its complete body hash and current position quantity.
+A bare revision request cannot enter the effect path.
+
 No runtime imports or selects the orchestrator, no code issues permits, and no
-credential or public mutation route was added. Revision/partial execution also
-remains unsupported until a separate management-risk plan is accepted.
+credential or public mutation route was added. Authenticated execution remains
+unsupported until separate runtime-selection, permit-issuance, and observed
+Testnet evidence gates are accepted.
