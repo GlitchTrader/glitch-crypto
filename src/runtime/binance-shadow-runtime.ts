@@ -86,6 +86,7 @@ export interface BinanceShadowRuntimeSnapshot {
 
 export interface ShadowRuntimeProvider {
   snapshot(): BinanceShadowRuntimeSnapshot;
+  acknowledgeDecision(eventId: string): void;
 }
 
 export class BinanceShadowRuntime implements ShadowRuntimeProvider {
@@ -101,7 +102,6 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
   private lastEvaluationMs = 0;
   private lastCandidateEventMs = 0;
   private lastPositionEventMs = 0;
-  private lastCandidateObservationId: string | null = null;
 
   constructor(
     private readonly engine: TradingEngine,
@@ -172,9 +172,24 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
       return this.snapshot();
     }
     this.running = false;
+    this.latestDecisionEvent = null;
     this.marketRecorder.stop();
     await this.depthSupervisor.stop();
     return this.snapshot();
+  }
+
+  acknowledgeDecision(eventId: string): void {
+    const current = this.latestDecisionEvent;
+    if (!current || current.event_id !== eventId) {
+      return;
+    }
+    const now = Date.now();
+    if (current.event_type === "CANDIDATE") {
+      this.lastCandidateEventMs = now;
+    } else {
+      this.lastPositionEventMs = now;
+    }
+    this.latestDecisionEvent = null;
   }
 
   snapshot(): BinanceShadowRuntimeSnapshot {
@@ -266,26 +281,54 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
     this.lastEvaluationMs = nowMs;
     this.latestObservation = this.opportunity.snapshot(nowMs);
     const positions = this.engine.database.getPositions();
+    const current = this.latestDecisionEvent;
+
     if (positions.length > 0) {
-      if (nowMs - this.lastPositionEventMs >= this.config.positionReviewMs) {
-        this.lastPositionEventMs = nowMs;
-        this.latestDecisionEvent = this.createDecisionEvent(
-          "POSITION",
-          nowMs,
-          `Review ${positions.length} protected paper position against live Binance evidence.`,
-          positions.map((position) => position.trancheId),
-        );
+      const trancheIds = positions.map((position) => position.trancheId);
+      if (
+        current?.event_type === "POSITION" &&
+        eventIsFresh(current, nowMs) &&
+        sameStrings(current.position_tranche_ids, trancheIds)
+      ) {
+        return;
+      }
+      if (nowMs - this.lastPositionEventMs < this.config.positionReviewMs) {
+        return;
+      }
+      this.lastPositionEventMs = nowMs;
+      this.latestDecisionEvent = this.createDecisionEvent(
+        "POSITION",
+        nowMs,
+        `Review ${positions.length} protected paper position against live Binance evidence.`,
+        trancheIds,
+      );
+      return;
+    }
+
+    if (current?.event_type === "POSITION") {
+      this.latestDecisionEvent = null;
+    }
+    if (!this.latestObservation.actionable) {
+      if (this.latestDecisionEvent?.event_type === "CANDIDATE") {
+        this.latestDecisionEvent = null;
       }
       return;
     }
-    if (!this.latestObservation.actionable) {
+
+    const candidate = this.latestDecisionEvent;
+    if (
+      candidate?.event_type === "CANDIDATE" &&
+      eventIsFresh(candidate, nowMs) &&
+      candidate.suggested_action === this.latestObservation.action
+    ) {
       return;
     }
-    const changed = this.lastCandidateObservationId !== this.latestObservation.observation_id;
-    if (!changed && nowMs - this.lastCandidateEventMs < this.config.candidateCooldownMs) {
+    const directionChanged =
+      candidate?.event_type === "CANDIDATE" &&
+      candidate.suggested_action !== this.latestObservation.action;
+    if (!directionChanged && nowMs - this.lastCandidateEventMs < this.config.candidateCooldownMs) {
       return;
     }
-    this.lastCandidateObservationId = this.latestObservation.observation_id;
     this.lastCandidateEventMs = nowMs;
     this.latestDecisionEvent = this.createDecisionEvent(
       "CANDIDATE",
@@ -332,6 +375,15 @@ class ObservedEvidenceSink implements BinanceStreamEvidenceSink {
     this.observer(record);
     return record;
   }
+}
+
+function eventIsFresh(event: ShadowDecisionEvent, nowMs: number): boolean {
+  const expires = Date.parse(event.expires_utc);
+  return Number.isFinite(expires) && expires > nowMs;
+}
+
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function recordedMilliseconds(record: BinanceStreamEvidenceRecord): number {

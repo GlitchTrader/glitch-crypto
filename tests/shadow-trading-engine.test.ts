@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { ShadowTradingEngine } from "../src/runtime/shadow-trading-engine.js";
 import type {
   BinanceShadowRuntimeSnapshot,
@@ -9,17 +10,98 @@ import { GlitchDatabase } from "../src/storage/database.js";
 import { PaperVenue } from "../src/venue/paper-venue.js";
 
 class FixedRuntime implements ShadowRuntimeProvider {
-  constructor(private readonly value: BinanceShadowRuntimeSnapshot) {}
+  readonly acknowledged: string[] = [];
+
+  constructor(readonly value: BinanceShadowRuntimeSnapshot) {}
 
   snapshot(): BinanceShadowRuntimeSnapshot {
     return this.value;
   }
+
+  acknowledgeDecision(eventId: string): void {
+    this.acknowledged.push(eventId);
+    if (this.value.decision_event?.event_id === eventId) {
+      this.value.decision_event = null;
+      this.value.status.latest_event_id = null;
+    }
+  }
 }
 
-test("live shadow evidence is part of the packet identity and market state", () => {
+test("live shadow evidence is part of packet identity and market state", () => {
   const database = new GlitchDatabase(":memory:", 100_000, 6_000_000);
   const engine = new ShadowTradingEngine(database, new PaperVenue());
-  engine.attachRuntime(new FixedRuntime({
+  const runtime = new FixedRuntime(runtimeSnapshot());
+  engine.attachRuntime(runtime);
+
+  const state = engine.getState();
+  const packet = engine.getPacket();
+  assert.equal((state.market as Record<string, unknown>).source, "binance-shadow");
+  assert.equal((state.market as Record<string, unknown>).mark_price, 61_000);
+  assert.equal((packet.decision_event as Record<string, unknown>).event_id, "event-1");
+  assert.equal((packet.market_observation as Record<string, unknown>).calibrated, false);
+  assert.equal(typeof packet.packet_id, "string");
+  assert.equal(String(packet.packet_id).length, 64);
+  database.close();
+});
+
+test("an accepted decision acknowledges and consumes its frozen event", () => {
+  const database = new GlitchDatabase(":memory:", 100_000, 6_000_000);
+  const engine = new ShadowTradingEngine(database, new PaperVenue());
+  const runtime = new FixedRuntime(runtimeSnapshot());
+  engine.attachRuntime(runtime);
+  const packet = engine.getPacket();
+
+  const receipt = engine.submitIntent({
+    schema_version: "glitch.crypto.intent.v1",
+    intent_id: randomUUID(),
+    packet_id: packet.packet_id,
+    account: "paper-main",
+    instrument: "BTCUSDT-PERP",
+    action: "NOTHING",
+    reason: "The uncalibrated candidate does not justify exposure.",
+  });
+
+  assert.equal(receipt.accepted, true);
+  assert.deepEqual(runtime.acknowledged, ["event-1"]);
+  assert.equal(runtime.snapshot().decision_event, null);
+  database.close();
+});
+
+test("new exposure from a superseded event is rejected before paper mutation", () => {
+  const database = new GlitchDatabase(":memory:", 100_000, 6_100_000);
+  database.setGatewayMode("shadow");
+  const engine = new ShadowTradingEngine(database, new PaperVenue());
+  engine.start();
+  const runtime = new FixedRuntime(runtimeSnapshot());
+  engine.attachRuntime(runtime);
+  const stalePacket = engine.getPacket();
+  runtime.value.decision_event = {
+    ...runtime.value.decision_event!,
+    event_id: "event-2",
+    source_observation_id: "observation-2",
+  };
+  runtime.value.status.latest_event_id = "event-2";
+
+  const receipt = engine.submitIntent({
+    schema_version: "glitch.crypto.intent.v1",
+    intent_id: randomUUID(),
+    packet_id: stalePacket.packet_id,
+    account: "paper-main",
+    instrument: "BTCUSDT-PERP",
+    action: "ENTER_LONG",
+    stop_price: 60_950,
+    target_price: 61_100,
+    reason: "Stale candidate must not create exposure.",
+  });
+
+  assert.equal(receipt.accepted, false);
+  assert.equal(receipt.reason, "intent_packet_is_not_bound_to_current_decision_event");
+  assert.equal(database.getPositions().length, 0);
+  database.close();
+});
+
+function runtimeSnapshot(): BinanceShadowRuntimeSnapshot {
+  return {
     status: {
       schema_version: "glitch.crypto.binance-shadow-runtime.v1",
       mode: "binance-shadow",
@@ -96,21 +178,11 @@ test("live shadow evidence is part of the packet identity and market state", () 
       event_type: "CANDIDATE",
       instrument: "BTCUSDT-PERP",
       created_utc: "2026-08-25T10:00:01.000Z",
-      expires_utc: "2026-08-25T10:00:31.000Z",
+      expires_utc: "2099-08-25T10:03:01.000Z",
       source_observation_id: "observation-1",
       suggested_action: "ENTER_LONG",
       reason: "Positive edge after costs.",
       position_tranche_ids: [],
     },
-  }));
-
-  const state = engine.getState();
-  const packet = engine.getPacket();
-  assert.equal((state.market as Record<string, unknown>).source, "binance-shadow");
-  assert.equal((state.market as Record<string, unknown>).mark_price, 61_000);
-  assert.equal((packet.decision_event as Record<string, unknown>).event_id, "event-1");
-  assert.equal((packet.market_observation as Record<string, unknown>).calibrated, false);
-  assert.equal(typeof packet.packet_id, "string");
-  assert.equal(String(packet.packet_id).length, 64);
-  database.close();
-});
+  };
+}

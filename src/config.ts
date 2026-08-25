@@ -101,7 +101,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       ),
       candidateCooldownMs: integer(
         env.GLITCH_SHADOW_CANDIDATE_COOLDOWN_MS,
-        10_000,
+        30_000,
         1_000,
         300_000,
         "shadow candidate cooldown",
@@ -115,9 +115,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       ),
       eventLifetimeMs: integer(
         env.GLITCH_SHADOW_EVENT_LIFETIME_MS,
-        30_000,
-        1_000,
-        300_000,
+        180_000,
+        5_000,
+        600_000,
         "shadow event lifetime",
       ),
       opportunity: {
