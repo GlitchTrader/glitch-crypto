@@ -110,6 +110,22 @@ identities. Entry history is immutable; revisions replace this current pointer.
 Partial, replacement, and full-close mutations must prove this reference rather
 than derive current truth from original entry geometry.
 
+### OwnedProtectionState
+
+Durable single-writer state containing the current `OwnedProtection` pointer,
+a monotonic transition sequence, and the complete canonical request for any
+nonterminal entry, revision, or close. Canonical JSON, an integrity hash, and
+compare-and-set storage preserve restart identity; the state does not replace
+venue position or order truth.
+
+### OwnedProtectionBinding
+
+Immutable comparison between `OwnedProtectionState`, fresh reconciled one-way
+private position truth, and exact active reduce-only stop/target Algo evidence.
+`ready` means the supplied management facts agree. `flat` means no local pointer
+and no native exposure. Both remain non-authorizing; any pending, stale,
+contradictory, unowned, or identity-ambiguous fact is `blocked`.
+
 ### NativeOrder
 
 Venue-owned mutation identity. Entry, stop, target, amendment, reduction, and exit identities are never inferred from price proximity when the venue provides explicit relations.
@@ -190,6 +206,14 @@ current_pair_proven → reduction_visibility_pending → replacement_stop_pendin
 
 Owned-position close:
 current_pair_proven → close_visibility_pending → closed_cleanup_pending → closed
+
+Durable ownership:
+flat → entry_pending → owned → revision_pending → owned
+                              → close_pending → flat
+
+Native binding:
+durable_pointer + private_position + exact_stop + exact_target
+                                      → ready / blocked
 
 Lesson:
 proposed → testing → confirmed/contradicted → active → revised/retired/expired

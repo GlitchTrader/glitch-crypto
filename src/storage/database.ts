@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { bodyHash, canonicalJson } from "../domain/canonical-json.js";
 import { DEFAULT_RISK_POLICY, validatePolicy } from "../domain/policy.js";
 import type {
   AccountRecord,
@@ -15,6 +16,14 @@ import type {
 interface StoredIntent {
   bodyHash: string;
   response: IntentReceipt | null;
+}
+
+export interface RuntimeStateRecord<T> {
+  key: string;
+  version: number;
+  bodyHash: string;
+  value: T;
+  updatedUtc: string;
 }
 
 export class GlitchDatabase {
@@ -48,6 +57,72 @@ export class GlitchDatabase {
       this.db.exec("ROLLBACK");
       throw error;
     }
+  }
+
+  getRuntimeState<T>(key: string): RuntimeStateRecord<T> | null {
+    const stateKey = runtimeStateKey(key);
+    const row = this.db
+      .prepare("SELECT version, state_json, body_hash, updated_utc FROM runtime_state WHERE state_key = ?")
+      .get(stateKey) as {
+        version: number;
+        state_json: string;
+        body_hash: string;
+        updated_utc: string;
+      } | undefined;
+    if (!row) {
+      return null;
+    }
+    const value = JSON.parse(row.state_json) as T;
+    const actualHash = bodyHash(value);
+    if (actualHash !== row.body_hash) {
+      throw new Error(`runtime state integrity mismatch for ${stateKey}`);
+    }
+    return {
+      key: stateKey,
+      version: Number(row.version),
+      bodyHash: actualHash,
+      value,
+      updatedUtc: row.updated_utc,
+    };
+  }
+
+  compareAndSetRuntimeState<T>(
+    key: string,
+    expectedVersion: number,
+    value: T,
+  ): RuntimeStateRecord<T> {
+    const stateKey = runtimeStateKey(key);
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+      throw new Error("runtime state expected version must be a non-negative safe integer");
+    }
+    const stateJson = canonicalJson(value);
+    if (typeof stateJson !== "string") {
+      throw new Error("runtime state must be JSON serializable");
+    }
+    const hash = bodyHash(value);
+    const updatedUtc = nowUtc();
+    let changes = 0;
+    if (expectedVersion === 0) {
+      changes = Number(this.db.prepare(
+        `INSERT OR IGNORE INTO runtime_state (
+           state_key, version, state_json, body_hash, updated_utc
+         ) VALUES (?, 1, ?, ?, ?)`,
+      ).run(stateKey, stateJson, hash, updatedUtc).changes);
+    } else {
+      changes = Number(this.db.prepare(
+        `UPDATE runtime_state SET
+           version = version + 1, state_json = ?, body_hash = ?, updated_utc = ?
+         WHERE state_key = ? AND version = ?`,
+      ).run(stateJson, hash, updatedUtc, stateKey, expectedVersion).changes);
+    }
+    if (changes !== 1) {
+      throw new Error(`runtime state version conflict for ${stateKey}`);
+    }
+    const stored = this.getRuntimeState<T>(stateKey);
+    if (stored === null) {
+      throw new Error(`runtime state disappeared after write for ${stateKey}`);
+    }
+    return stored;
   }
 
   getPolicy(): RiskPolicy {
@@ -432,6 +507,13 @@ export class GlitchDatabase {
         message TEXT NOT NULL,
         data_json TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS runtime_state (
+        state_key TEXT PRIMARY KEY,
+        version INTEGER NOT NULL CHECK (version > 0),
+        state_json TEXT NOT NULL,
+        body_hash TEXT NOT NULL,
+        updated_utc TEXT NOT NULL
+      );
       CREATE INDEX IF NOT EXISTS idx_trades_closed ON trades(closed_utc);
       CREATE INDEX IF NOT EXISTS idx_journal_utc ON journal(utc);
     `);
@@ -474,4 +556,12 @@ function mapPosition(row: Record<string, unknown>): PositionRecord {
 
 export function nowUtc(): string {
   return new Date().toISOString();
+}
+
+function runtimeStateKey(value: string): string {
+  const key = typeof value === "string" ? value.trim() : "";
+  if (!/^[a-z0-9][a-z0-9._-]{2,127}$/.test(key)) {
+    throw new Error("runtime state key must contain 3-128 lowercase identifier characters");
+  }
+  return key;
 }

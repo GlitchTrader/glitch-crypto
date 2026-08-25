@@ -53,3 +53,21 @@ engine_binding_authority = false
 
 It is a prerequisite object, not a venue selector or trading command. No CLI,
 HTTP route, environment switch, or engine integration is exposed by Phase K.
+
+## Durable management binding
+
+Phase N adds a separate `OwnedProtectionState` and
+`OwnedProtectionBinding`. The state persists the current position-management
+pointer and the complete canonical request for a nonterminal entry, revision,
+or close using integrity-checked compare-and-set storage. Typed staging must be
+saved before transport; same-body replay is idempotent and a changed body is a
+conflict. The binding compares
+that pointer with a fresh one-way private position and exact active reduce-only
+stop/target Algo proofs.
+
+`ready` means those supplied management facts agree; `flat` means the durable
+pointer and native position are both absent; either can become `blocked` on
+staleness, stream degradation, pending reconciliation, unowned exposure/order,
+or any symbol, direction, quantity, geometry, or identity mismatch. The output
+is deeply frozen, selected-field only, credential-free, and still declares
+`mutation_authority=false` and `engine_binding_authority=false`.

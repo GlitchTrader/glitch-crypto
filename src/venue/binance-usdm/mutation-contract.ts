@@ -166,7 +166,7 @@ export function validateBinanceUsdmOwnedProtectionClose(
   request: BinanceUsdmOwnedProtectionCloseRequest,
 ): ValidatedBinanceUsdmOwnedProtectionClose {
   const closeIntentId = canonicalUuid(request.closeIntentId);
-  const current = canonicalOwnedProtection(request.current);
+  const current = validateBinanceUsdmOwnedProtection(request.current);
   return {
     closeIntentId,
     current,
@@ -176,6 +176,12 @@ export function validateBinanceUsdmOwnedProtectionClose(
       closeIntentId.replaceAll("-", ""),
     ),
   };
+}
+
+export function validateBinanceUsdmOwnedProtection(
+  value: BinanceUsdmOwnedProtection,
+): BinanceUsdmOwnedProtection {
+  return canonicalOwnedProtection(value);
 }
 
 export function deriveBinanceUsdmProtectionRevisionIds(
