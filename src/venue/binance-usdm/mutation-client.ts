@@ -40,7 +40,7 @@ export interface BinanceUsdmMutationEvidenceEvent {
   recorded_utc: string;
   phase: "before_transport" | "transport_result";
   operation_id: string;
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "DELETE";
   path: string;
   parameters?: unknown;
   disposition?: string;
@@ -225,6 +225,13 @@ export class BinanceUsdmMutationClient {
     }, input.clientOrderId);
   }
 
+  async cancelAlgoOrder(clientAlgoId: string): Promise<BinanceUsdmMutationResult> {
+    const checked = checkedClientId(clientAlgoId);
+    return this.signedMutation("DELETE", "/fapi/v1/algoOrder", {
+      clientAlgoId: checked,
+    }, checked);
+  }
+
   async queryOrder(symbol: string, clientOrderId: string): Promise<BinanceUsdmLookupResult> {
     return this.signedLookup("GET", "/fapi/v1/order", {
       symbol,
@@ -239,7 +246,7 @@ export class BinanceUsdmMutationClient {
   }
 
   private async signedMutation(
-    method: "POST",
+    method: "POST" | "DELETE",
     path: string,
     parameters: Readonly<Record<string, BinanceQueryValue>>,
     operationId: string,
@@ -320,7 +327,7 @@ export class BinanceUsdmMutationClient {
   }
 
   private async signedTransport(
-    method: "GET" | "POST",
+    method: "GET" | "POST" | "DELETE",
     path: string,
     parameters: Readonly<Record<string, BinanceQueryValue>>,
   ): Promise<{ ok: boolean; status: number | null; payload: unknown; networkError: boolean }> {
@@ -329,7 +336,9 @@ export class BinanceUsdmMutationClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      const url = method === "GET" ? this.baseUrl + path + "?" + signed : this.baseUrl + path;
+      const url = method === "POST"
+        ? this.baseUrl + path
+        : this.baseUrl + path + "?" + signed;
       const response = await this.fetchImpl(url, {
         method,
         headers: {

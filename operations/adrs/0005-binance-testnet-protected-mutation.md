@@ -37,3 +37,11 @@ promotion and would weaken the default-safe boundary.
 - A stop exists independently of Glitch connectivity once Binance accepts it.
 - Target failure degrades to stop-protected state rather than false success or immediate duplicate mutation.
 - Production URL access remains structurally unavailable in this phase.
+
+## 2026-08-25 close lifecycle amendment
+
+Protected-position close keeps exact native protection active until a
+deterministic reduce-only market close is proven filled. Only then may the
+coordinator cancel the derived target and stop `clientAlgoId` values. Cancellation
+ambiguity remains nonterminal, and restart reconciliation is GET-only. Symbol-wide
+cancel-all endpoints remain outside the contract.

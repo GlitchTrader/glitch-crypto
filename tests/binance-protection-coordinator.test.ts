@@ -14,11 +14,13 @@ interface Scenario {
   entry?: "filled" | "partial" | "execution_unknown";
   entryLookup?: "found" | "not_found";
   stop?: "accepted" | "rejected" | "execution_unknown";
-  stopLookup?: "found" | "not_found";
+  stopLookup?: "found" | "canceled" | "not_found";
   target?: "accepted" | "rejected";
-  targetLookup?: "found" | "not_found";
+  targetLookup?: "found" | "canceled" | "not_found";
   close?: "filled" | "execution_unknown";
   closeLookup?: "found" | "not_found";
+  stopCancel?: "accepted" | "rejected" | "execution_unknown";
+  targetCancel?: "accepted" | "rejected" | "execution_unknown";
 }
 
 interface RecordedCall {
@@ -148,23 +150,108 @@ test("restart reconciliation reconstructs native ownership without any mutation"
   assert.equal(harness.calls.every((call) => call.method === "GET"), true);
 });
 
+test("a protected close is proven before either owned protection order is canceled", async () => {
+  const harness = await createHarness({});
+  const outcome = await harness.coordinator.closeProtectedEntry(entryRequest());
+
+  assert.equal(outcome.state, "closed");
+  assert.equal(outcome.close?.client_order_id, ids.emergencyCloseClientOrderId);
+  assert.equal(outcome.close?.reduce_only, true);
+  assert.equal(outcome.target_cleanup?.disposition, "canceled");
+  assert.equal(outcome.stop_cleanup?.disposition, "canceled");
+
+  const closePost = findCall(harness.calls, "POST", ids.emergencyCloseClientOrderId);
+  const targetDelete = findCall(harness.calls, "DELETE", ids.targetClientAlgoId);
+  const stopDelete = findCall(harness.calls, "DELETE", ids.stopClientAlgoId);
+  assert.ok(harness.calls.indexOf(closePost) < harness.calls.indexOf(targetDelete));
+  assert.ok(harness.calls.indexOf(closePost) < harness.calls.indexOf(stopDelete));
+  assert.equal(closePost.reduceOnly, "true");
+});
+
+test("unknown close visibility leaves both native protection orders untouched", async () => {
+  const harness = await createHarness({
+    close: "execution_unknown",
+    closeLookup: "not_found",
+  });
+  const outcome = await harness.coordinator.closeProtectedEntry(entryRequest());
+
+  assert.equal(outcome.state, "close_visibility_pending");
+  assert.equal(outcome.close, null);
+  assert.equal(
+    harness.calls.some((call) => call.method === "DELETE"),
+    false,
+  );
+});
+
+test("ambiguous target cancellation remains pending while exact lookup says active", async () => {
+  const harness = await createHarness({ targetCancel: "execution_unknown" });
+  const outcome = await harness.coordinator.closeProtectedEntry(entryRequest());
+
+  assert.equal(outcome.state, "closed_protection_cleanup_pending");
+  assert.equal(outcome.target_cleanup?.disposition, "active");
+  assert.equal(outcome.target_cleanup?.venue_status, "NEW");
+  assert.equal(outcome.stop_cleanup?.disposition, "canceled");
+});
+
+test("ambiguous cancellation is complete only after exact canceled status is visible", async () => {
+  const harness = await createHarness({
+    targetCancel: "execution_unknown",
+    targetLookup: "canceled",
+  });
+  const outcome = await harness.coordinator.closeProtectedEntry(entryRequest());
+
+  assert.equal(outcome.state, "closed");
+  assert.equal(outcome.target_cleanup?.disposition, "canceled");
+  assert.equal(outcome.target_cleanup?.venue_status, "CANCELED");
+});
+
+test("restart close reconciliation is GET-only and reconstructs completed cleanup", async () => {
+  const harness = await createHarness({
+    targetLookup: "canceled",
+    stopLookup: "canceled",
+  });
+  const outcome = await harness.coordinator.reconcileProtectedClose(entryRequest());
+
+  assert.equal(outcome.state, "closed");
+  assert.equal(outcome.close?.client_order_id, ids.emergencyCloseClientOrderId);
+  assert.equal(outcome.target_cleanup?.disposition, "canceled");
+  assert.equal(outcome.stop_cleanup?.disposition, "canceled");
+  assert.equal(harness.calls.every((call) => call.method === "GET"), true);
+});
+
 test("mutation evidence precedes transport and excludes credentials and signatures", async () => {
   const harness = await createHarness({});
-  await harness.coordinator.createProtectedEntry(entryRequest());
+  await harness.coordinator.closeProtectedEntry(entryRequest());
 
   const serialized = JSON.stringify(harness.evidence.events);
   assert.equal(serialized.includes("test-api-key"), false);
   assert.equal(serialized.includes("test-api-secret"), false);
   assert.equal(serialized.toLowerCase().includes("signature"), false);
-  const entryBefore = harness.evidence.events.find(
-    (event) => event.operation_id === ids.entryClientOrderId && event.phase === "before_transport",
+  const closeBefore = harness.evidence.events.find(
+    (event) => event.operation_id === ids.emergencyCloseClientOrderId && event.phase === "before_transport",
   );
-  const entryResult = harness.evidence.events.find(
-    (event) => event.operation_id === ids.entryClientOrderId && event.phase === "transport_result",
+  const closeResult = harness.evidence.events.find(
+    (event) => event.operation_id === ids.emergencyCloseClientOrderId && event.phase === "transport_result",
   );
-  assert.ok(entryBefore);
-  assert.ok(entryResult);
-  assert.ok((entryBefore?.sequence ?? 0) < (entryResult?.sequence ?? 0));
+  assert.ok(closeBefore);
+  assert.ok(closeResult);
+  assert.ok((closeBefore?.sequence ?? 0) < (closeResult?.sequence ?? 0));
+
+  for (const clientAlgoId of [ids.targetClientAlgoId, ids.stopClientAlgoId]) {
+    const deleteBefore = harness.evidence.events.find(
+      (event) => event.operation_id === clientAlgoId &&
+        event.method === "DELETE" &&
+        event.phase === "before_transport",
+    );
+    const deleteResult = harness.evidence.events.find(
+      (event) => event.operation_id === clientAlgoId &&
+        event.method === "DELETE" &&
+        event.phase === "transport_result",
+    );
+    assert.ok(deleteBefore);
+    assert.ok(deleteResult);
+    assert.ok((deleteBefore?.sequence ?? 0) < (deleteResult?.sequence ?? 0));
+  }
 });
 
 function entryRequest() {
@@ -277,13 +364,39 @@ function createFakeFetch(
       if (clientId === ids.stopClientAlgoId) {
         return scenario.stopLookup === "not_found"
           ? notFound()
-          : jsonResponse(algoOrder(ids.stopClientAlgoId, "STOP_MARKET", "59000.0", 2001));
+          : jsonResponse(algoOrder(
+              ids.stopClientAlgoId,
+              "STOP_MARKET",
+              "59000.0",
+              2001,
+              scenario.stopLookup === "canceled" ? "CANCELED" : "NEW",
+            ));
       }
       if (clientId === ids.targetClientAlgoId) {
         return scenario.targetLookup === "not_found"
           ? notFound()
-          : jsonResponse(algoOrder(ids.targetClientAlgoId, "TAKE_PROFIT_MARKET", "61000.0", 2002));
+          : jsonResponse(algoOrder(
+              ids.targetClientAlgoId,
+              "TAKE_PROFIT_MARKET",
+              "61000.0",
+              2002,
+              scenario.targetLookup === "canceled" ? "CANCELED" : "NEW",
+            ));
       }
+    }
+
+    if (url.pathname === "/fapi/v1/algoOrder" && method === "DELETE") {
+      const disposition = clientId === ids.stopClientAlgoId
+        ? scenario.stopCancel
+        : scenario.targetCancel;
+      if (disposition === "execution_unknown") {
+        return executionUnknown();
+      }
+      if (disposition === "rejected") {
+        return jsonResponse({ code: -2011, msg: "Unknown order sent." }, 400);
+      }
+      const algoId = clientId === ids.stopClientAlgoId ? 2001 : 2002;
+      return jsonResponse({ algoId, clientAlgoId: clientId, code: 200, msg: "success" });
     }
 
     return jsonResponse({ code: -1, msg: "unexpected request" }, 500);
@@ -314,6 +427,7 @@ function algoOrder(
   orderType: "STOP_MARKET" | "TAKE_PROFIT_MARKET",
   triggerPrice: string,
   algoId: number,
+  algoStatus: "NEW" | "CANCELED" = "NEW",
 ) {
   return {
     clientAlgoId,
@@ -326,7 +440,7 @@ function algoOrder(
     quantity: "0.010",
     triggerPrice,
     reduceOnly: true,
-    algoStatus: "NEW",
+    algoStatus,
   };
 }
 

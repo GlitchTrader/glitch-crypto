@@ -57,6 +57,35 @@ export interface BinanceUsdmProtectedEntryResult {
   emergency_close: BinanceUsdmOrdinaryOrderEvidence | null;
 }
 
+export type BinanceUsdmProtectedCloseState =
+  | "close_visibility_pending"
+  | "closed_protection_cleanup_pending"
+  | "closed";
+
+export type BinanceUsdmAlgoCleanupDisposition =
+  | "canceled"
+  | "absent"
+  | "active"
+  | "unavailable"
+  | "pending";
+
+export interface BinanceUsdmAlgoCleanupEvidence {
+  client_algo_id: string;
+  disposition: BinanceUsdmAlgoCleanupDisposition;
+  venue_status: string | null;
+}
+
+export interface BinanceUsdmProtectedCloseResult {
+  schema_version: "glitch.crypto.binance-usdm-protected-close-result.v1";
+  intent_id: string;
+  state: BinanceUsdmProtectedCloseState;
+  reason: string;
+  ids: ValidatedBinanceUsdmProtectedEntry["ids"];
+  close: BinanceUsdmOrdinaryOrderEvidence | null;
+  target_cleanup: BinanceUsdmAlgoCleanupEvidence | null;
+  stop_cleanup: BinanceUsdmAlgoCleanupEvidence | null;
+}
+
 export class BinanceUsdmProtectionCoordinator {
   constructor(private readonly client: BinanceUsdmMutationClient) {}
 
@@ -272,6 +301,132 @@ export class BinanceUsdmProtectionCoordinator {
         );
   }
 
+  async closeProtectedEntry(
+    request: BinanceUsdmProtectedEntryRequest,
+  ): Promise<BinanceUsdmProtectedCloseResult> {
+    const plan = validateBinanceUsdmProtectedEntry(request);
+    const current = await this.reconcileProtectedEntry(request);
+    if (
+      (current.state !== "open_protected" &&
+        current.state !== "open_protected_target_pending") ||
+      current.entry === null ||
+      current.stop === null
+    ) {
+      return closeResult(
+        plan,
+        "close_visibility_pending",
+        "protected_position_not_proven_for_close",
+        null,
+        null,
+        null,
+      );
+    }
+
+    const submission = await this.client.placeEmergencyClose({
+      symbol: plan.symbol,
+      side: plan.exitSide,
+      quantity: current.entry.executed_quantity,
+      clientOrderId: plan.ids.emergencyCloseClientOrderId,
+    });
+    const close = await this.resolveOrdinaryFill(
+      submission,
+      plan.symbol,
+      plan.exitSide,
+      plan.ids.emergencyCloseClientOrderId,
+      true,
+      current.entry.executed_quantity,
+    );
+    if (close === null) {
+      return closeResult(
+        plan,
+        "close_visibility_pending",
+        submission.disposition === "rejected"
+          ? "reduce_only_close_rejected_requires_account_reconciliation"
+          : "reduce_only_close_requires_reconciliation",
+        null,
+        null,
+        null,
+      );
+    }
+
+    const targetCleanup = await this.cancelOwnedAlgo(
+      plan.ids.targetClientAlgoId,
+      current.target !== null,
+    );
+    const stopCleanup = await this.cancelOwnedAlgo(
+      plan.ids.stopClientAlgoId,
+      true,
+    );
+    const complete = cleanupComplete(targetCleanup) && cleanupComplete(stopCleanup);
+    return closeResult(
+      plan,
+      complete ? "closed" : "closed_protection_cleanup_pending",
+      complete
+        ? "reduce_only_close_and_native_cleanup_proven"
+        : "reduce_only_close_proven_native_cleanup_pending",
+      close,
+      targetCleanup,
+      stopCleanup,
+    );
+  }
+
+  async reconcileProtectedClose(
+    request: BinanceUsdmProtectedEntryRequest,
+  ): Promise<BinanceUsdmProtectedCloseResult> {
+    const plan = validateBinanceUsdmProtectedEntry(request);
+    const entry = await this.lookupOrdinaryFill(
+      plan.symbol,
+      plan.entrySide,
+      plan.ids.entryClientOrderId,
+      false,
+      null,
+    );
+    if (entry === null) {
+      return closeResult(
+        plan,
+        "close_visibility_pending",
+        "restart_entry_not_proven_for_close",
+        null,
+        null,
+        null,
+      );
+    }
+    const close = await this.lookupOrdinaryFill(
+      plan.symbol,
+      plan.exitSide,
+      plan.ids.emergencyCloseClientOrderId,
+      true,
+      entry.executed_quantity,
+    );
+    if (close === null) {
+      return closeResult(
+        plan,
+        "close_visibility_pending",
+        "restart_reduce_only_close_not_proven",
+        null,
+        null,
+        null,
+      );
+    }
+    const targetCleanup = await this.inspectAlgoCleanup(
+      plan.ids.targetClientAlgoId,
+    );
+    const stopCleanup = await this.inspectAlgoCleanup(
+      plan.ids.stopClientAlgoId,
+    );
+    const complete = cleanupComplete(targetCleanup) && cleanupComplete(stopCleanup);
+    return closeResult(
+      plan,
+      complete ? "closed" : "closed_protection_cleanup_pending",
+      complete
+        ? "restart_close_and_native_cleanup_proven"
+        : "restart_close_proven_native_cleanup_pending",
+      close,
+      targetCleanup,
+      stopCleanup,
+    );
+  }
+
   private async resolveOrdinaryFill(
     submission: BinanceUsdmMutationResult,
     symbol: string,
@@ -398,6 +553,48 @@ export class BinanceUsdmProtectionCoordinator {
           close,
         );
   }
+
+  private async cancelOwnedAlgo(
+    clientAlgoId: string,
+    previouslyProvenActive: boolean,
+  ): Promise<BinanceUsdmAlgoCleanupEvidence> {
+    const cancellation = await this.client.cancelAlgoOrder(clientAlgoId);
+    if (proveAlgoCancellation(cancellation.payload, clientAlgoId)) {
+      return cleanupEvidence(clientAlgoId, "canceled", "CANCELED");
+    }
+    const inspected = await this.inspectAlgoCleanup(clientAlgoId);
+    if (
+      inspected.disposition === "absent" &&
+      (previouslyProvenActive || cancellation.disposition === "ambiguous")
+    ) {
+      return cleanupEvidence(clientAlgoId, "pending", null);
+    }
+    return inspected;
+  }
+
+  private async inspectAlgoCleanup(
+    clientAlgoId: string,
+  ): Promise<BinanceUsdmAlgoCleanupEvidence> {
+    const lookup = await this.client.queryAlgoOrder(clientAlgoId);
+    if (lookup.disposition === "not_found") {
+      return cleanupEvidence(clientAlgoId, "absent", null);
+    }
+    if (lookup.disposition === "unavailable") {
+      return cleanupEvidence(clientAlgoId, "unavailable", null);
+    }
+    const record = objectRecord(lookup.payload);
+    if (record?.clientAlgoId !== clientAlgoId) {
+      return cleanupEvidence(clientAlgoId, "pending", null);
+    }
+    const status = stringValue(record.algoStatus);
+    if (status === "CANCELED") {
+      return cleanupEvidence(clientAlgoId, "canceled", status);
+    }
+    if (status === "NEW" || status === "WORKING") {
+      return cleanupEvidence(clientAlgoId, "active", status);
+    }
+    return cleanupEvidence(clientAlgoId, "pending", status);
+  }
 }
 
 function proveOrdinaryFill(
@@ -486,6 +683,31 @@ function booleanValue(value: unknown): boolean | null {
   return null;
 }
 
+function proveAlgoCancellation(
+  payload: unknown,
+  clientAlgoId: string,
+): boolean {
+  const record = objectRecord(payload);
+  return record?.clientAlgoId === clientAlgoId &&
+    String(record.code) === "200";
+}
+
+function cleanupEvidence(
+  clientAlgoId: string,
+  disposition: BinanceUsdmAlgoCleanupDisposition,
+  venueStatus: string | null,
+): BinanceUsdmAlgoCleanupEvidence {
+  return {
+    client_algo_id: clientAlgoId,
+    disposition,
+    venue_status: venueStatus,
+  };
+}
+
+function cleanupComplete(evidence: BinanceUsdmAlgoCleanupEvidence): boolean {
+  return evidence.disposition === "canceled" || evidence.disposition === "absent";
+}
+
 function result(
   plan: ValidatedBinanceUsdmProtectedEntry,
   state: BinanceUsdmProtectedEntryState,
@@ -505,5 +727,25 @@ function result(
     stop,
     target,
     emergency_close: emergencyClose,
+  };
+}
+
+function closeResult(
+  plan: ValidatedBinanceUsdmProtectedEntry,
+  state: BinanceUsdmProtectedCloseState,
+  reason: string,
+  close: BinanceUsdmOrdinaryOrderEvidence | null,
+  targetCleanup: BinanceUsdmAlgoCleanupEvidence | null,
+  stopCleanup: BinanceUsdmAlgoCleanupEvidence | null,
+): BinanceUsdmProtectedCloseResult {
+  return {
+    schema_version: "glitch.crypto.binance-usdm-protected-close-result.v1",
+    intent_id: plan.intentId,
+    state,
+    reason,
+    ids: plan.ids,
+    close,
+    target_cleanup: targetCleanup,
+    stop_cleanup: stopCleanup,
   };
 }

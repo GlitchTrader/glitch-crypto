@@ -51,6 +51,12 @@ Sources:
 - **FR-010**: Target failure MUST leave a proven stop in place and report `open_protected_target_pending`; it MUST NOT mislabel the position unprotected.
 - **FR-011**: Retained evidence and errors MUST exclude API key, secret, signature, and signed URL/body.
 - **FR-012**: Tests MUST prove stop-before-target ordering, query-before-retry, no duplicate mutation, emergency close, restart-compatible identities, and production URL rejection.
+- **FR-013**: A protected-position close MUST remain reduce-only and MUST be proven filled before native protection cleanup begins.
+- **FR-014**: Native cleanup MUST address only the exact deterministic target and stop `clientAlgoId` values; symbol-wide cancel-all is forbidden.
+- **FR-015**: Ambiguous close visibility MUST preserve native protection and perform no cancellation.
+- **FR-016**: Ambiguous cancellation MUST remain nonterminal unless exact query evidence proves `CANCELED`.
+- **FR-017**: Protected-close restart reconciliation MUST be GET-only.
+- **FR-018**: DELETE evidence MUST obey the same before-transport retention and credential-redaction contract as POST evidence.
 
 ## State contract
 
@@ -64,6 +70,9 @@ entry_submission
        -> emergency_flatten_confirmed
        -> open_protected_target_pending
        -> open_protected
+            -> close_visibility_pending
+            -> closed_protection_cleanup_pending
+            -> closed
 ```
 
 No state in this phase means production-accepted.
