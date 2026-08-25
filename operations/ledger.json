@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project": "glitch-crypto",
-  "updated": "2026-08-25T01:51:49Z",
+  "updated": "2026-08-25T01:59:32Z",
   "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
   "items": [
     {
@@ -70,7 +70,10 @@
         "Windows strict build and 55 of 55 deterministic tests passed after route construction and route assertions were added.",
         "Commit a36fabe adds a separate credential-free raw-market recorder for BTCUSDT aggregate trades and 1-second mark price with strict identity inspection, bounded JSONL retention, finite capture, and content-addressed verification.",
         "The retained 15.016-second production-public fixture contains 245 aggregate trades and 12 mark-price updates in one contiguous lifecycle with zero errors, backoffs, invalid messages, non-increasing trade IDs, or non-monotonic per-family event times; canonical SHA-256 07185347c6e1f6bdc0f2900b026f49d753d41c6de573904e4c7d8315669eb48c.",
-        "Windows strict build and 60 of 60 deterministic tests passed after freezing the raw-market fixture."
+        "Windows strict build and 60 of 60 deterministic tests passed after freezing the raw-market fixture.",
+        "Commit 6e1f7e3 adds a finite Futures-Testnet-only authenticated private evidence gate: preflight before listen-key creation, bounded local capture, complete private lifecycle and reconciliation requirements, fully applied user events, deterministic replay, and a content-addressed manifest without raw account values.",
+        "The private evidence command rejects missing credentials before transport; no Binance credential or endpoint environment variables were present for an external run.",
+        "Windows strict build and 63 of 63 deterministic tests passed for the dormant private evidence gate."
       ],
       "sources": [
         "https://github.com/GlitchTrader/glitch-crypto/issues/4",
@@ -83,7 +86,9 @@
         "docs/BINANCE_MUTATION_CONTRACT.md",
         "docs/BINANCE_TESTNET_PREFLIGHT.md",
         "docs/BINANCE_MARKET_EVIDENCE.md",
+        "docs/BINANCE_PRIVATE_EVIDENCE.md",
         "operations/specs/GC-002/market-evidence-spec.md",
+        "operations/specs/GC-002/private-evidence-spec.md",
         "operations/evidence/GC-002/binance-mainnet-market-2026-08-24.jsonl.manifest.json",
         "operations/evidence/GC-002/binance-testnet-websocket-routing-2026-08-24.json",
         "https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/Important-WebSocket-Change-Notice"
@@ -109,6 +114,8 @@
         "routed_public_market_testnet_transport": "observed",
         "routed_private_testnet_transport": "source_tested_runtime_pending",
         "raw_mainnet_market_evidence": "accepted_for_replay_input",
+        "authenticated_private_evidence_gate": "implemented_dormant",
+        "authenticated_private_runtime_evidence": "pending_credentials_and_approval",
         "testnet_mutation_contract": "implemented_dormant",
         "testnet_preflight_contract": "implemented_unrun",
         "authenticated_testnet_mutation_evidence": "pending",

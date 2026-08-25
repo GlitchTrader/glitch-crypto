@@ -6,5 +6,5 @@
 - [x] F004 Implement Testnet-only preflight-gated finite capture.
 - [x] F005 Add focused source acceptance and rejection tests.
 - [x] F006 Run the full repository gate.
-- [ ] F007 Commit and push dormant source to `main`.
+- [x] F007 Commit and push dormant source to `main`.
 - [ ] F008 Run authenticated external capture with credentials and explicit approval.
