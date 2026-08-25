@@ -45,6 +45,7 @@ export class BinanceUsdmOrderBook {
   private eventTime: number | null = null;
   private transactionTime: number | null = null;
   private gapReason: string | null = null;
+  private awaitingFirstDelta = false;
 
   ingest(input: BinanceDepthDelta): BinanceDepthApplyResult {
     const delta = parseBinanceDepthDelta(input);
@@ -70,28 +71,11 @@ export class BinanceUsdmOrderBook {
     this.transactionTime = null;
     this.gapReason = null;
     this.status = "ready";
+    this.awaitingFirstDelta = true;
 
     const pending = this.buffered;
     this.buffered = [];
-    let firstApplied = false;
     for (const delta of pending) {
-      if (delta.u <= snapshot.lastUpdateId) {
-        continue;
-      }
-      if (!firstApplied) {
-        if (delta.U > snapshot.lastUpdateId + 1) {
-          this.markGap(
-            `snapshot_update_gap:${snapshot.lastUpdateId}->${delta.U}`,
-          );
-          break;
-        }
-        if (delta.u < snapshot.lastUpdateId + 1) {
-          continue;
-        }
-        this.applyLevelsAndAdvance(delta);
-        firstApplied = true;
-        continue;
-      }
       if (this.applyLive(delta) === "gapped") {
         break;
       }
@@ -109,6 +93,7 @@ export class BinanceUsdmOrderBook {
     this.eventTime = null;
     this.transactionTime = null;
     this.gapReason = null;
+    this.awaitingFirstDelta = false;
   }
 
   view(depth = 20): BinanceOrderBookView {
@@ -138,25 +123,43 @@ export class BinanceUsdmOrderBook {
     if (current === null) {
       throw new Error("order-book live application requires a snapshot");
     }
+
+    if (this.awaitingFirstDelta) {
+      if (delta.u < current) {
+        return "ignored";
+      }
+      const overlapsSnapshot = delta.U <= current && delta.u >= current;
+      const directlyFollowsSnapshot = delta.pu === current;
+      if (!overlapsSnapshot && !directlyFollowsSnapshot) {
+        this.markGap(`snapshot_update_gap:${current}->${delta.U}`);
+        return "gapped";
+      }
+      if (!this.applyLevelsAndAdvance(delta)) {
+        return "gapped";
+      }
+      this.awaitingFirstDelta = false;
+      return "applied";
+    }
+
     if (delta.u <= current) {
       return "ignored";
     }
-    if (delta.pu !== undefined && delta.pu !== current) {
-      this.markGap(`previous_update_mismatch:${current}->${delta.pu}`);
-      return "gapped";
-    }
-    if (delta.U > current + 1) {
+    if (delta.pu !== undefined) {
+      if (delta.pu !== current) {
+        this.markGap(`previous_update_mismatch:${current}->${delta.pu}`);
+        return "gapped";
+      }
+    } else if (delta.U > current + 1) {
       this.markGap(`first_update_gap:${current}->${delta.U}`);
       return "gapped";
     }
-    this.applyLevelsAndAdvance(delta);
-    return "applied";
+    return this.applyLevelsAndAdvance(delta) ? "applied" : "gapped";
   }
 
-  private applyLevelsAndAdvance(delta: BinanceDepthDelta): void {
+  private applyLevelsAndAdvance(delta: BinanceDepthDelta): boolean {
     if (delta.s && this.symbol !== null && this.symbol !== delta.s) {
       this.markGap(`symbol_changed:${this.symbol}->${delta.s}`);
-      return;
+      return false;
     }
     applyLevels(this.bids, delta.b);
     applyLevels(this.asks, delta.a);
@@ -167,6 +170,7 @@ export class BinanceUsdmOrderBook {
       this.symbol = delta.s;
     }
     this.status = "ready";
+    return true;
   }
 
   private markGap(reason: string): void {

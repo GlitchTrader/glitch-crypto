@@ -1,0 +1,45 @@
+name: binance-public-evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: Finite public capture duration (5-300 seconds)
+        required: false
+        default: "30"
+      symbol:
+        description: Binance USD-M perpetual symbol
+        required: false
+        default: BTCUSDT
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GLITCH_BINANCE_USDM_BASE_URL: https://testnet.binancefuture.com
+      GLITCH_BINANCE_USDM_STREAMS_URL: wss://stream.binancefuture.com
+      GLITCH_BINANCE_USDM_SYMBOL: ${{ inputs.symbol || 'BTCUSDT' }}
+      GLITCH_BINANCE_USDM_EVIDENCE_PATH: artifacts/binance-usdm-testnet-public.jsonl
+      GLITCH_BINANCE_USDM_EVIDENCE_MIN_MESSAGES: "25"
+      GLITCH_BINANCE_USDM_EVIDENCE_MAX_BYTES: "8388608"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run build
+      - name: Capture finite sanitized Futures Testnet public evidence
+        run: npm run binance:evidence -- capture-public "${{ inputs.duration_seconds || '30' }}"
+      - name: Upload evidence and manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: binance-usdm-testnet-public-evidence-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14

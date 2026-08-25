@@ -1,0 +1,31 @@
+{
+  "schema_version": "glitch.crypto.runtime-rejection-evidence.v1",
+  "recorded_utc": "2026-08-24T23:01:03Z",
+  "venue": "binance-usdm",
+  "environment": "mainnet",
+  "runner": {
+    "provider": "github-hosted",
+    "region": "westus3",
+    "image": "ubuntu-24.04"
+  },
+  "source": {
+    "commit": "4a792464d1e1d5dbe03be8567c64b81bb3ce77c4",
+    "workflow_run": 32787342723,
+    "artifact_id": 9541925656,
+    "artifact_sha256": "1f289209faca739a9bf34729bf2ef1d14345056bee1f894c3c260f4cb6609488",
+    "evidence_sha256": "ad74f90763bce886e35916a0b650ff256271c70ef3bd9eef4c5cf242c2d46f5a"
+  },
+  "observation": {
+    "duration_ms": 15402,
+    "sequence_contiguous": true,
+    "timestamps_monotonic": true,
+    "supervisor_start_observed": true,
+    "supervisor_stop_observed": true,
+    "websocket_reached_synchronizing": true,
+    "rest_snapshot_status": 451,
+    "rest_snapshot_error": "restricted location eligibility rejection",
+    "reconnect_attempts": 5
+  },
+  "accepted_for_public_replay": false,
+  "interpretation": "The GitHub-hosted runner was ineligible to retrieve the mainnet REST depth snapshot. This is runner-access evidence, not accepted market, order-book, account, or production-readiness evidence."
+}

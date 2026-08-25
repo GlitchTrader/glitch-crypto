@@ -1,0 +1,45 @@
+{
+  "schema_version": "glitch.crypto.binance-usdm-public-evidence-report.v1",
+  "evidence_sha256": "0b1053f5607bfc9354e4744f993f42637dada8902b5982f69319c5b279dd2ab7",
+  "mutation_authority": false,
+  "accepted_for_public_replay": true,
+  "rejection_reasons": [],
+  "warnings": [],
+  "session_ids": [
+    "96a1bfda-0aa9-43e8-aef7-ef959f56617c"
+  ],
+  "record_count": 12,
+  "first_recorded_utc": "2026-08-24T23:16:53.913Z",
+  "last_recorded_utc": "2026-08-24T23:17:23.950Z",
+  "duration_ms": 30037,
+  "sequence_contiguous": true,
+  "timestamps_monotonic": true,
+  "supervisor_start_observed": true,
+  "supervisor_stop_observed": true,
+  "public_running_observed": true,
+  "counts": {
+    "supervisor_transitions": 2,
+    "public_transitions": 4,
+    "public_snapshots": 1,
+    "public_messages": 5,
+    "public_errors": 0,
+    "private_records": 0,
+    "other_records": 0
+  },
+  "replay": {
+    "processed_records": 6,
+    "ignored_records": 6,
+    "order_book_status": "ready",
+    "symbol": "BTCUSDT",
+    "update_id": 410623244109,
+    "best_bid": [
+      "78688.20",
+      "0.0129"
+    ],
+    "best_ask": [
+      "78718.20",
+      "0.0054"
+    ],
+    "gap_reason": null
+  }
+}

@@ -2,7 +2,7 @@
   "schema_version": "architectonic.rail.v1",
   "metadata": {
     "project": "glitch-crypto",
-    "updated_utc": "2026-08-24T22:40:00Z",
+    "updated_utc": "2026-08-24T23:22:00Z",
     "source_map": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
     "status_authority": "operations/ledger.json"
   },
@@ -45,15 +45,18 @@
         "dependencies": [
           "GC-001"
         ],
-        "ticket": "https://github.com/GlitchTrader/glitch-crypto/issues/4",
+        "ticket": "https://githu.com/GlitchTrader/glitch-crypto/issues/4",
         "spec": "operations/specs/GC-002/spec.md",
-        "active_spec": "operations/specs/GC-002/stream-spec.md",
-        "phase": "binance-usdm-supervised-streams",
+        "active_spec": "operations/specs/GC-002/public-evidence-spec.md",
+        "phase": "binance-usdm-public-testnet-accepted-private-and-production-gates-pending",
         "phase_a_status": "complete",
         "phase_a_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/6",
-        "phase_b_status": "code_complete_ci_green_runtime_evidence_pending",
+        "phase_b_status": "code_complete_ci_green",
         "phase_b_branch": "architect/gc-002-binance-streams",
         "phase_b_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/7",
+        "phase_c_status": "public_testnet_transport_and_replay_accepted",
+        "phase_c_branch": "architect/gc-002-public-evidence",
+        "phase_c_pull_request": "https://github.com/GlitchTrader/glitch-crypto/pull/8",
         "acceptance": [
           "official capability contract recorded",
           "read-only endpoint authority is explicit and fail-closed",
@@ -67,16 +70,23 @@
         ],
         "evidence": [
           "local isolated phase-A gate: strict TypeScript build and 10/10 Binance shadow tests passing",
-          "official Binance JavaScript USDⓈ-M connector inspected at commit 092e4f289e9047114fb8ec66256510cc207e16bb",
+          "official Binance JavaScript USD-M connector inspected at commit 092e4f289e9047114fb8ec66256510cc207e16bb",
           "remote phase-A commit: c967a59a67611cd09234f97e971225fe78879dde",
           "remote phase-A CI: success in GitHub Actions run 32782846560",
           "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/6 over https://github.com/GlitchTrader/glitch-crypto/pull/3",
           "local isolated phase-B gate: strict TypeScript build and 18/18 supervised-stream tests passing",
           "remote phase-B implementation commit: 567c5084535d7d21e89d8242bf5e117477ec9f10",
           "remote full stacked phase-B CI: strict TypeScript build and 27/27 tests passing in GitHub Actions run 32785239711",
-          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/7 over https://github.com/GlitchTrader/glitch-crypto/pull/6"
+          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/7 over https://github.com/GlitchTrader/glitch-crypto/pull/6",
+          "mainnet public capture run 32787342723 terminated deterministically and recorded HTTP 451 runner-eligibility rejection without relabeling it as market evidence",
+          "initial Futures Testnet run 32787924187 exposed ten false reconnects caused by Spot-style U continuity in the local USD-M book",
+          "Futures continuity correction committed at 747e29bfd6544bdb16f86c913017c1010cd15a2a; six focused order-book tests and full repository CI passed in run 32788614419",
+          "accepted Futures Testnet public capture run 32788614491: 30.037 seconds, 111 public messages, one snapshot, zero reconnects, zero stream errors, contiguous sequence, ready non-crossed replay",
+          "accepted raw evidence SHA-256 c78fd6e94b691a299d429f48ecd4e2e067cac6b55051f2ed5e5adce0adda4dbe; artifact ZIP SHA-256 77db5a72ecddd15ab1d2fd7c6f14f225e448addfc459c871b996235e6541184e",
+          "frozen deterministic observed fixture tests/fixtures/binance-usdm/observed-testnet-public.jsonl with evidence SHA-256 0b1053f5607bfc9354e4744f993f42637dada8902b5982f69319c5b279dd2ab7",
+          "review: stacked draft PR https://github.com/GlitchTrader/glitch-crypto/pull/8 over https://github.com/GlitchTrader/glitch-crypto/pull/7"
         ],
-        "notes": "Phase A is complete. Phase B code is complete and CI-green, but remains unaccepted for production use until observed public fixtures and authenticated private fixtures are captured, replayed, and reviewed. Binance remains a shadow benchmark, not an accepted mutation venue."
+        "notes": "Read-only Binance USD-M public Futures Testnet transport and deterministic replay are accepted as a GC-002 sub-gate. Binance is still a shadow benchmark, not an accepted production mutation venue. Mainnet eligibility, authenticated fee/precision evidence, private stream recovery, restart reconciliation, native protection, fill behavior, and the cross-venue production decision remain pending."
       },
       {
         "id": "GC-003",

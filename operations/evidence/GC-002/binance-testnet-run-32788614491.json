@@ -1,0 +1,86 @@
+{
+  "schema_version": "glitch.crypto.observed-fixture-provenance.v1",
+  "recorded_utc": "2026-08-24T23:22:00Z",
+  "venue": "binance-usdm",
+  "environment": "testnet",
+  "endpoints": {
+    "rest": "https://testnet.binancefuture.com",
+    "websocket_stream": "wss://stream.binancefuture.com"
+  },
+  "runner": {
+    "provider": "github-hosted",
+    "region": "westcentralus",
+    "image": "ubuntu-24.04"
+  },
+  "source": {
+    "commit": "747e29bfd6544bdb16f86c913017c1010cd15a2a",
+    "ci_workflow_run": 32788614419,
+    "public_evidence_workflow_run": 32788614491,
+    "job_id": 97625556614,
+    "artifact_id": 9542343460,
+    "artifact_zip_sha256": "77db5a72ecddd15ab1d2fd7c6f14f225e448addfc459c871b996235e6541184e",
+    "raw_evidence_sha256": "c78fd6e94b691a299d429f48ecd4e2e067cac6b55051f2ed5e5adce0adda4dbe",
+    "raw_record_count": 118,
+    "raw_public_message_count": 111,
+    "duration_ms": 30037
+  },
+  "source_acceptance": {
+    "accepted_for_public_replay": true,
+    "sequence_contiguous": true,
+    "timestamps_monotonic": true,
+    "public_snapshot_count": 1,
+    "public_error_count": 0,
+    "reconnect_count": 0,
+    "order_book_status": "ready",
+    "symbol": "BTCUSDT",
+    "update_id": 410623478212,
+    "best_bid": [
+      "78706.90",
+      "0.0033"
+    ],
+    "best_ask": [
+      "78719.80",
+      "63.3391"
+    ]
+  },
+  "frozen_fixture": {
+    "path": "tests/fixtures/binance-usdm/observed-testnet-public.jsonl",
+    "manifest_path": "tests/fixtures/binance-usdm/observed-testnet-public.jsonl.manifest.json",
+    "evidence_sha256": "0b1053f5607bfc9354e4744f993f42637dada8902b5982f69319c5b279dd2ab7",
+    "record_count": 12,
+    "public_message_count": 5,
+    "derivation": [
+      "Retain source records 1 through 10, covering lifecycle, snapshot, and the first 5 consecutive public depth messages.",
+      "Retain source records 117 and 118 for the observed deterministic stop lifecycle.",
+      "Retain the first 20 bid and first 20 ask levels from the source REST snapshot; all retained prices and quantities are unchanged.",
+      "Renumber retained evidence sequence values from 1 through 12; session ID, timestamps, and retained market-event payloads are unchanged."
+    ],
+    "replay": {
+      "order_book_status": "ready",
+      "symbol": "BTCUSDT",
+      "update_id": 410623244109,
+      "best_bid": [
+        "78688.20",
+        "0.0129"
+      ],
+      "best_ask": [
+        "78718.20",
+        "0.0054"
+      ],
+      "gap_reason": null
+    }
+  },
+  "authority": {
+    "mutation_authority": false,
+    "accepted_scope": "bounded public Futures Testnet transport and deterministic replay only",
+    "remaining_gates": [
+      "production/mainnet eligibility",
+      "authenticated fee and precision discovery",
+      "private account and order stream recovery",
+      "restart reconciliation",
+      "native protection and exact ownership",
+      "fill and mutation safety",
+      "cross-venue production selection"
+    ]
+  }
+}
