@@ -102,6 +102,14 @@ cannot amend an untriggered conditional order, the new stop and target are
 proven before the old target and stop are cleaned up. Ambiguity retains the last
 proven protection and becomes reconciliation state.
 
+### OwnedProtection
+
+Current exact position-management reference: originating position intent,
+remaining quantity, direction, geometry, and active native stop/target
+identities. Entry history is immutable; revisions replace this current pointer.
+Partial, replacement, and full-close mutations must prove this reference rather
+than derive current truth from original entry geometry.
+
 ### NativeOrder
 
 Venue-owned mutation identity. Entry, stop, target, amendment, reduction, and exit identities are never inferred from price proximity when the venue provides explicit relations.
@@ -179,6 +187,9 @@ Protection revision:
 current_pair_proven → reduction_visibility_pending → replacement_stop_pending
                     → replacement_target_pending → old_cleanup_pending
                     → revision_protected
+
+Owned-position close:
+current_pair_proven → close_visibility_pending → closed_cleanup_pending → closed
 
 Lesson:
 proposed → testing → confirmed/contradicted → active → revised/retired/expired

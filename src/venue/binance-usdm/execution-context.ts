@@ -27,7 +27,7 @@ export interface CompileBinanceUsdmExecutionContextInput {
 }
 
 export interface BinanceUsdmExecutionContext {
-  readonly schema_version: "glitch.crypto.binance-usdm-execution-context.v2";
+  readonly schema_version: "glitch.crypto.binance-usdm-execution-context.v3";
   readonly venue: "binance-usdm";
   readonly environment: "testnet";
   readonly symbol: string;
@@ -67,7 +67,7 @@ export interface BinanceUsdmExecutionContext {
   }>;
   readonly capabilities: Readonly<{
     protected_entry: true;
-    original_entry_full_close: true;
+    owned_position_full_close: true;
     protection_revision: true;
     restart_reconciliation: true;
     partial_reduction: true;
@@ -319,7 +319,7 @@ export function compileBinanceUsdmExecutionContext(
   const uniqueBlockers = [...new Set(blockers)].sort();
   const status = uniqueBlockers.length === 0 ? "ready" : "blocked";
   return deepFreeze({
-    schema_version: "glitch.crypto.binance-usdm-execution-context.v2",
+    schema_version: "glitch.crypto.binance-usdm-execution-context.v3",
     venue: "binance-usdm",
     environment: "testnet",
     symbol,
@@ -360,7 +360,7 @@ export function compileBinanceUsdmExecutionContext(
     },
     capabilities: {
       protected_entry: true,
-      original_entry_full_close: true,
+      owned_position_full_close: true,
       protection_revision: true,
       restart_reconciliation: true,
       partial_reduction: true,

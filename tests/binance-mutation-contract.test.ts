@@ -7,6 +7,7 @@ import {
   deriveBinanceUsdmMutationIds,
   deriveBinanceUsdmProtectionRevisionIds,
   subtractPositiveDecimal,
+  validateBinanceUsdmOwnedProtectionClose,
   validateBinanceUsdmProtectedEntry,
   validateBinanceUsdmProtectionRevision,
 } from "../src/venue/binance-usdm/mutation-contract.js";
@@ -102,6 +103,29 @@ test("protection revision rejects no-op and full-position reduction", () => {
     nextStopPrice: "59500",
     nextTargetPrice: "61500",
   }), /strictly smaller/);
+});
+
+test("owned-position close identity is deterministic and current-quantity scoped", () => {
+  const currentIds = deriveBinanceUsdmProtectionRevisionIds(revisionIntentId);
+  const request = {
+    closeIntentId: "323e4567-e89b-42d3-a456-426614174000",
+    current: {
+      positionIntentId: intentId,
+      symbol: "btcusdt",
+      direction: "LONG" as const,
+      quantity: "0.0060",
+      stopPrice: "59500.00",
+      targetPrice: "61500.00",
+      stopClientAlgoId: currentIds.stopClientAlgoId,
+      targetClientAlgoId: currentIds.targetClientAlgoId,
+    },
+  };
+  const first = validateBinanceUsdmOwnedProtectionClose(request);
+  const second = validateBinanceUsdmOwnedProtectionClose(request);
+  assert.equal(first.closeClientOrderId, second.closeClientOrderId);
+  assert.equal(first.closeClientOrderId.length, 36);
+  assert.equal(first.current.quantity, "0.006");
+  assert.equal(first.exitSide, "SELL");
 });
 
 test("mutation transport rejects production and non-loopback custom origins", () => {

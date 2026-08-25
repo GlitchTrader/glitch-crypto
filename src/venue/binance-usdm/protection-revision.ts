@@ -1,8 +1,11 @@
 import {
   objectRecord,
   stringValue,
+  validateBinanceUsdmOwnedProtectionClose,
   validateBinanceUsdmProtectionRevision,
+  type BinanceUsdmOwnedProtectionCloseRequest,
   type BinanceUsdmProtectionRevisionRequest,
+  type ValidatedBinanceUsdmOwnedProtectionClose,
   type ValidatedBinanceUsdmProtectionRevision,
 } from "./mutation-contract.js";
 import {
@@ -47,6 +50,27 @@ export interface BinanceUsdmProtectionRevisionResult {
   reduction: BinanceUsdmOrdinaryOrderEvidence | null;
   replacement_stop: BinanceUsdmAlgoOrderEvidence | null;
   replacement_target: BinanceUsdmAlgoOrderEvidence | null;
+  current_target_cleanup: BinanceUsdmAlgoCleanupEvidence | null;
+  current_stop_cleanup: BinanceUsdmAlgoCleanupEvidence | null;
+}
+
+export type BinanceUsdmOwnedProtectionCloseState =
+  | "owned_protection_not_proven"
+  | "close_visibility_pending"
+  | "closed_cleanup_pending"
+  | "closed";
+
+export interface BinanceUsdmOwnedProtectionCloseResult {
+  schema_version: "glitch.crypto.binance-usdm-owned-protection-close-result.v1";
+  close_intent_id: string;
+  position_intent_id: string;
+  state: BinanceUsdmOwnedProtectionCloseState;
+  reason: string;
+  current: ValidatedBinanceUsdmOwnedProtectionClose["current"];
+  close_client_order_id: string;
+  current_stop: BinanceUsdmAlgoOrderEvidence | null;
+  current_target: BinanceUsdmAlgoOrderEvidence | null;
+  close: BinanceUsdmOrdinaryOrderEvidence | null;
   current_target_cleanup: BinanceUsdmAlgoCleanupEvidence | null;
   current_stop_cleanup: BinanceUsdmAlgoCleanupEvidence | null;
 }
@@ -268,6 +292,114 @@ export class BinanceUsdmProtectionRevisionCoordinator {
     );
   }
 
+  async closeOwnedProtection(
+    request: BinanceUsdmOwnedProtectionCloseRequest,
+  ): Promise<BinanceUsdmOwnedProtectionCloseResult> {
+    const plan = validateBinanceUsdmOwnedProtectionClose(request);
+    const currentStop = await this.lookupOwnedProtection(
+      plan,
+      "STOP_MARKET",
+      plan.current.stopClientAlgoId,
+      plan.current.stopPrice,
+    );
+    const currentTarget = await this.lookupOwnedProtection(
+      plan,
+      "TAKE_PROFIT_MARKET",
+      plan.current.targetClientAlgoId,
+      plan.current.targetPrice,
+    );
+    if (currentStop === null || currentTarget === null) {
+      return ownedCloseResult(
+        plan,
+        "owned_protection_not_proven",
+        "exact_current_stop_and_target_required_before_close",
+        currentStop,
+        currentTarget,
+      );
+    }
+
+    const submission = await this.client.placeReduceOnlyMarket({
+      symbol: plan.current.symbol,
+      side: plan.exitSide,
+      quantity: plan.current.quantity,
+      clientOrderId: plan.closeClientOrderId,
+    });
+    if (submission.disposition === "rejected") {
+      return ownedCloseResult(
+        plan,
+        "close_visibility_pending",
+        "reduce_only_close_rejected_requires_position_reconciliation",
+        currentStop,
+        currentTarget,
+      );
+    }
+    const close = await this.resolveOwnedClose(plan, submission);
+    if (close === null) {
+      return ownedCloseResult(
+        plan,
+        "close_visibility_pending",
+        "reduce_only_close_requires_position_reconciliation",
+        currentStop,
+        currentTarget,
+      );
+    }
+
+    const currentTargetCleanup = await this.cancelOwnedAlgo(
+      plan.current.targetClientAlgoId,
+    );
+    const currentStopCleanup = await this.cancelOwnedAlgo(
+      plan.current.stopClientAlgoId,
+    );
+    const complete = cleanupComplete(currentTargetCleanup) &&
+      cleanupComplete(currentStopCleanup);
+    return ownedCloseResult(
+      plan,
+      complete ? "closed" : "closed_cleanup_pending",
+      complete
+        ? "reduce_only_close_and_current_cleanup_proven"
+        : "reduce_only_close_proven_current_cleanup_pending",
+      currentStop,
+      currentTarget,
+      close,
+      currentTargetCleanup,
+      currentStopCleanup,
+    );
+  }
+
+  async reconcileOwnedProtectionClose(
+    request: BinanceUsdmOwnedProtectionCloseRequest,
+  ): Promise<BinanceUsdmOwnedProtectionCloseResult> {
+    const plan = validateBinanceUsdmOwnedProtectionClose(request);
+    const close = await this.lookupOwnedClose(plan);
+    if (close === null) {
+      return ownedCloseResult(
+        plan,
+        "close_visibility_pending",
+        "restart_reduce_only_close_not_proven",
+      );
+    }
+    const currentTargetCleanup = await this.inspectAlgoCleanup(
+      plan.current.targetClientAlgoId,
+    );
+    const currentStopCleanup = await this.inspectAlgoCleanup(
+      plan.current.stopClientAlgoId,
+    );
+    const complete = cleanupComplete(currentTargetCleanup) &&
+      cleanupComplete(currentStopCleanup);
+    return ownedCloseResult(
+      plan,
+      complete ? "closed" : "closed_cleanup_pending",
+      complete
+        ? "restart_close_and_current_cleanup_proven"
+        : "restart_close_proven_current_cleanup_pending",
+      null,
+      null,
+      close,
+      currentTargetCleanup,
+      currentStopCleanup,
+    );
+  }
+
   private async resolveReduction(
     plan: ValidatedBinanceUsdmProtectionRevision,
     submission: BinanceUsdmMutationResult,
@@ -284,6 +416,45 @@ export class BinanceUsdmProtectionRevisionCoordinator {
       return direct;
     }
     return this.lookupReduction(plan);
+  }
+
+  private async resolveOwnedClose(
+    plan: ValidatedBinanceUsdmOwnedProtectionClose,
+    submission: BinanceUsdmMutationResult,
+  ): Promise<BinanceUsdmOrdinaryOrderEvidence | null> {
+    const direct = proveOrdinaryFill(
+      submission.payload,
+      plan.current.symbol,
+      plan.exitSide,
+      plan.closeClientOrderId,
+      true,
+      plan.current.quantity,
+    );
+    if (direct?.status === "FILLED") {
+      return direct;
+    }
+    return this.lookupOwnedClose(plan);
+  }
+
+  private async lookupOwnedClose(
+    plan: ValidatedBinanceUsdmOwnedProtectionClose,
+  ): Promise<BinanceUsdmOrdinaryOrderEvidence | null> {
+    const lookup = await this.client.queryOrder(
+      plan.current.symbol,
+      plan.closeClientOrderId,
+    );
+    if (lookup.disposition !== "found") {
+      return null;
+    }
+    const evidence = proveOrdinaryFill(
+      lookup.payload,
+      plan.current.symbol,
+      plan.exitSide,
+      plan.closeClientOrderId,
+      true,
+      plan.current.quantity,
+    );
+    return evidence?.status === "FILLED" ? evidence : null;
   }
 
   private async lookupReduction(
@@ -326,6 +497,26 @@ export class BinanceUsdmProtectionRevisionCoordinator {
           type,
           clientAlgoId,
           quantity,
+          triggerPrice,
+        )
+      : null;
+  }
+
+  private async lookupOwnedProtection(
+    plan: ValidatedBinanceUsdmOwnedProtectionClose,
+    type: "STOP_MARKET" | "TAKE_PROFIT_MARKET",
+    clientAlgoId: string,
+    triggerPrice: string,
+  ): Promise<BinanceUsdmAlgoOrderEvidence | null> {
+    const lookup = await this.client.queryAlgoOrder(clientAlgoId);
+    return lookup.disposition === "found"
+      ? proveAlgoOrder(
+          lookup,
+          plan.current.symbol,
+          plan.exitSide,
+          type,
+          clientAlgoId,
+          plan.current.quantity,
           triggerPrice,
         )
       : null;
@@ -399,6 +590,32 @@ function revisionResult(
     reduction,
     replacement_stop: replacementStop,
     replacement_target: replacementTarget,
+    current_target_cleanup: currentTargetCleanup,
+    current_stop_cleanup: currentStopCleanup,
+  };
+}
+
+function ownedCloseResult(
+  plan: ValidatedBinanceUsdmOwnedProtectionClose,
+  state: BinanceUsdmOwnedProtectionCloseState,
+  reason: string,
+  currentStop: BinanceUsdmAlgoOrderEvidence | null = null,
+  currentTarget: BinanceUsdmAlgoOrderEvidence | null = null,
+  close: BinanceUsdmOrdinaryOrderEvidence | null = null,
+  currentTargetCleanup: BinanceUsdmAlgoCleanupEvidence | null = null,
+  currentStopCleanup: BinanceUsdmAlgoCleanupEvidence | null = null,
+): BinanceUsdmOwnedProtectionCloseResult {
+  return {
+    schema_version: "glitch.crypto.binance-usdm-owned-protection-close-result.v1",
+    close_intent_id: plan.closeIntentId,
+    position_intent_id: plan.current.positionIntentId,
+    state,
+    reason,
+    current: plan.current,
+    close_client_order_id: plan.closeClientOrderId,
+    current_stop: currentStop,
+    current_target: currentTarget,
+    close,
     current_target_cleanup: currentTargetCleanup,
     current_stop_cleanup: currentStopCleanup,
   };

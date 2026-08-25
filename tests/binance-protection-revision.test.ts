@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   deriveBinanceUsdmMutationIds,
   deriveBinanceUsdmProtectionRevisionIds,
+  validateBinanceUsdmOwnedProtectionClose,
+  type BinanceUsdmOwnedProtectionCloseRequest,
   type BinanceUsdmProtectionRevisionRequest,
 } from "../src/venue/binance-usdm/mutation-contract.js";
 import {
@@ -13,8 +15,13 @@ import { BinanceUsdmProtectionRevisionCoordinator } from "../src/venue/binance-u
 
 const positionIntentId = "123e4567-e89b-42d3-a456-426614174000";
 const revisionIntentId = "223e4567-e89b-42d3-a456-426614174000";
+const closeIntentId = "323e4567-e89b-42d3-a456-426614174000";
 const currentIds = deriveBinanceUsdmMutationIds(positionIntentId);
 const revisionIds = deriveBinanceUsdmProtectionRevisionIds(revisionIntentId);
+const closeClientOrderId = validateBinanceUsdmOwnedProtectionClose({
+  closeIntentId,
+  current: revisedProtection(),
+}).closeClientOrderId;
 
 interface Scenario {
   reduction?: "filled" | "partial" | "rejected" | "execution_unknown";
@@ -29,6 +36,14 @@ interface Scenario {
   oldStopAfterCancel?: "active" | "canceled" | "not_found";
   reconcileOldTarget?: "active" | "canceled" | "not_found";
   reconcileOldStop?: "active" | "canceled" | "not_found";
+  close?: "filled" | "partial" | "rejected" | "execution_unknown";
+  closeLookup?: "filled" | "partial" | "not_found";
+  closeTargetCancel?: "accepted" | "rejected" | "execution_unknown";
+  closeStopCancel?: "accepted" | "rejected" | "execution_unknown";
+  closeTargetAfterCancel?: "active" | "canceled" | "not_found";
+  closeStopAfterCancel?: "active" | "canceled" | "not_found";
+  reconcileRevisionTarget?: "active" | "canceled" | "not_found";
+  reconcileRevisionStop?: "active" | "canceled" | "not_found";
 }
 
 interface RecordedCall {
@@ -194,6 +209,82 @@ test("restart reconciliation reconstructs a completed revision with GET only", a
   assert.equal(harness.calls.every((call) => call.method === "GET"), true);
 });
 
+test("generic close flattens revised quantity before current protection cleanup", async () => {
+  const harness = await createHarness({});
+  const outcome = await harness.coordinator.closeOwnedProtection(closeRequest());
+
+  assert.equal(outcome.state, "closed");
+  assert.equal(outcome.close?.client_order_id, closeClientOrderId);
+  assert.equal(outcome.close?.executed_quantity, "0.006");
+  assert.equal(outcome.current_target_cleanup?.disposition, "canceled");
+  assert.equal(outcome.current_stop_cleanup?.disposition, "canceled");
+  const closePost = findCall(harness.calls, "POST", closeClientOrderId);
+  const targetDelete = findCall(harness.calls, "DELETE", revisionIds.targetClientAlgoId);
+  const stopDelete = findCall(harness.calls, "DELETE", revisionIds.stopClientAlgoId);
+  assert.equal(closePost.quantity, "0.006");
+  assert.equal(closePost.reduceOnly, "true");
+  assert.ok(harness.calls.indexOf(closePost) < harness.calls.indexOf(targetDelete));
+  assert.ok(harness.calls.indexOf(targetDelete) < harness.calls.indexOf(stopDelete));
+});
+
+test("ambiguous generic close is queried once and leaves protection intact", async () => {
+  const harness = await createHarness({
+    close: "execution_unknown",
+    closeLookup: "not_found",
+  });
+  const outcome = await harness.coordinator.closeOwnedProtection(closeRequest());
+
+  assert.equal(outcome.state, "close_visibility_pending");
+  assert.equal(countCalls(harness.calls, "POST", closeClientOrderId), 1);
+  assert.equal(countCalls(harness.calls, "GET", closeClientOrderId), 1);
+  assert.equal(harness.calls.some((call) => call.method === "DELETE"), false);
+});
+
+test("partial generic close remains pending and performs no cleanup", async () => {
+  const harness = await createHarness({
+    close: "partial",
+    closeLookup: "partial",
+  });
+  const outcome = await harness.coordinator.closeOwnedProtection(closeRequest());
+
+  assert.equal(outcome.state, "close_visibility_pending");
+  assert.equal(outcome.close, null);
+  assert.equal(harness.calls.some((call) => call.method === "DELETE"), false);
+});
+
+test("rejected generic close performs no cleanup", async () => {
+  const harness = await createHarness({ close: "rejected" });
+  const outcome = await harness.coordinator.closeOwnedProtection(closeRequest());
+
+  assert.equal(outcome.state, "close_visibility_pending");
+  assert.equal(outcome.close, null);
+  assert.equal(harness.calls.some((call) => call.method === "DELETE"), false);
+});
+
+test("generic close requires exact current pair before mutation", async () => {
+  const harness = await createHarness({ stopLookup: "not_found" });
+  const outcome = await harness.coordinator.closeOwnedProtection(closeRequest());
+
+  assert.equal(outcome.state, "owned_protection_not_proven");
+  assert.equal(harness.calls.some((call) => call.method === "POST"), false);
+  assert.equal(harness.calls.some((call) => call.method === "DELETE"), false);
+});
+
+test("restart generic-close reconciliation is GET-only", async () => {
+  const harness = await createHarness({
+    closeLookup: "filled",
+    reconcileRevisionTarget: "canceled",
+    reconcileRevisionStop: "canceled",
+  });
+  const outcome = await harness.coordinator.reconcileOwnedProtectionClose(
+    closeRequest(),
+  );
+
+  assert.equal(outcome.state, "closed");
+  assert.equal(outcome.close?.executed_quantity, "0.006");
+  assert.equal(harness.calls.every((call) => call.method === "GET"), true);
+});
+
 function revisionRequest(
   reductionQuantity: string | null = "0.004",
 ): BinanceUsdmProtectionRevisionRequest {
@@ -212,6 +303,26 @@ function revisionRequest(
     reductionQuantity,
     nextStopPrice: "59500",
     nextTargetPrice: "61500",
+  };
+}
+
+function revisedProtection() {
+  return {
+    positionIntentId,
+    symbol: "BTCUSDT",
+    direction: "LONG" as const,
+    quantity: "0.006",
+    stopPrice: "59500",
+    targetPrice: "61500",
+    stopClientAlgoId: revisionIds.stopClientAlgoId,
+    targetClientAlgoId: revisionIds.targetClientAlgoId,
+  };
+}
+
+function closeRequest(): BinanceUsdmOwnedProtectionCloseRequest {
+  return {
+    closeIntentId,
+    current: revisedProtection(),
   };
 }
 
@@ -284,6 +395,28 @@ function createFakeFetch(
       ));
     }
 
+    if (url.pathname === "/fapi/v1/order" && clientId === closeClientOrderId) {
+      if (method === "POST") {
+        if (scenario.close === "rejected") {
+          return jsonResponse({ code: -1102, msg: "rejected" }, 400);
+        }
+        if (scenario.close === "execution_unknown") {
+          return executionUnknown();
+        }
+        return jsonResponse(closeOrder(
+          scenario.close === "partial" ? "PARTIALLY_FILLED" : "FILLED",
+          scenario.close === "partial" ? "0.003" : "0.006",
+        ));
+      }
+      if (scenario.closeLookup === "not_found") {
+        return notFound();
+      }
+      return jsonResponse(closeOrder(
+        scenario.closeLookup === "partial" ? "PARTIALLY_FILLED" : "FILLED",
+        scenario.closeLookup === "partial" ? "0.003" : "0.006",
+      ));
+    }
+
     if (url.pathname === "/fapi/v1/algoOrder" && method === "POST") {
       if (clientId === revisionIds.stopClientAlgoId) {
         placedQuantity.set(clientId, parameters.get("quantity") ?? "");
@@ -312,7 +445,11 @@ function createFakeFetch(
       cancelAttempted.add(clientId);
       const disposition = clientId === currentIds.targetClientAlgoId
         ? scenario.oldTargetCancel
-        : scenario.oldStopCancel;
+        : clientId === currentIds.stopClientAlgoId
+          ? scenario.oldStopCancel
+          : clientId === revisionIds.targetClientAlgoId
+            ? scenario.closeTargetCancel
+            : scenario.closeStopCancel;
       if (disposition === "execution_unknown") {
         return executionUnknown();
       }
@@ -324,9 +461,20 @@ function createFakeFetch(
 
     if (url.pathname === "/fapi/v1/algoOrder" && method === "GET" && clientId) {
       if (clientId === revisionIds.stopClientAlgoId) {
+        const state = cancelAttempted.has(clientId)
+          ? scenario.closeStopAfterCancel ?? "active"
+          : scenario.reconcileRevisionStop;
         return scenario.stopLookup === "not_found"
           ? notFound()
-          : jsonResponse(algoOrder(
+          : state
+            ? cleanupLookup(state, algoOrder(
+                clientId,
+                "STOP_MARKET",
+                "59500",
+                placedQuantity.get(clientId) ?? "0.006",
+                3001,
+              ))
+            : jsonResponse(algoOrder(
               clientId,
               "STOP_MARKET",
               "59500",
@@ -335,9 +483,20 @@ function createFakeFetch(
             ));
       }
       if (clientId === revisionIds.targetClientAlgoId) {
+        const state = cancelAttempted.has(clientId)
+          ? scenario.closeTargetAfterCancel ?? "active"
+          : scenario.reconcileRevisionTarget;
         return scenario.targetLookup === "not_found"
           ? notFound()
-          : jsonResponse(algoOrder(
+          : state
+            ? cleanupLookup(state, algoOrder(
+                clientId,
+                "TAKE_PROFIT_MARKET",
+                "61500",
+                placedQuantity.get(clientId) ?? "0.006",
+                3002,
+              ))
+            : jsonResponse(algoOrder(
               clientId,
               "TAKE_PROFIT_MARKET",
               "61500",
@@ -376,6 +535,22 @@ function reductionOrder(
   return {
     clientOrderId: revisionIds.reductionClientOrderId,
     orderId: 4001,
+    symbol: "BTCUSDT",
+    side: "SELL",
+    status,
+    executedQty,
+    avgPrice: "60000",
+    reduceOnly: true,
+  };
+}
+
+function closeOrder(
+  status: "FILLED" | "PARTIALLY_FILLED",
+  executedQty: string,
+) {
+  return {
+    clientOrderId: closeClientOrderId,
+    orderId: 5001,
     symbol: "BTCUSDT",
     side: "SELL",
     status,

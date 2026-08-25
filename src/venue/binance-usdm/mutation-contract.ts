@@ -55,6 +55,18 @@ export interface ValidatedBinanceUsdmProtectionRevision {
   ids: BinanceUsdmProtectionRevisionIds;
 }
 
+export interface BinanceUsdmOwnedProtectionCloseRequest {
+  closeIntentId: string;
+  current: BinanceUsdmOwnedProtection;
+}
+
+export interface ValidatedBinanceUsdmOwnedProtectionClose {
+  closeIntentId: string;
+  current: BinanceUsdmOwnedProtection;
+  exitSide: BinanceUsdmOrderSide;
+  closeClientOrderId: string;
+}
+
 export interface ValidatedBinanceUsdmProtectedEntry {
   intentId: string;
   symbol: string;
@@ -105,19 +117,7 @@ export function validateBinanceUsdmProtectionRevision(
   request: BinanceUsdmProtectionRevisionRequest,
 ): ValidatedBinanceUsdmProtectionRevision {
   const revisionIntentId = canonicalUuid(request.revisionIntentId);
-  const current: BinanceUsdmOwnedProtection = {
-    positionIntentId: canonicalUuid(request.current.positionIntentId),
-    symbol: canonicalSymbol(request.current.symbol),
-    direction: direction(request.current.direction),
-    quantity: canonicalPositiveDecimal(request.current.quantity, "current quantity"),
-    stopPrice: canonicalPositiveDecimal(request.current.stopPrice, "current stop price"),
-    targetPrice: canonicalPositiveDecimal(request.current.targetPrice, "current target price"),
-    stopClientAlgoId: canonicalClientId(request.current.stopClientAlgoId),
-    targetClientAlgoId: canonicalClientId(request.current.targetClientAlgoId),
-  };
-  if (current.stopClientAlgoId === current.targetClientAlgoId) {
-    throw new Error("Binance current stop and target identities must differ");
-  }
+  const current = canonicalOwnedProtection(request.current);
   const nextStopPrice = canonicalPositiveDecimal(
     request.nextStopPrice,
     "next stop price",
@@ -159,6 +159,22 @@ export function validateBinanceUsdmProtectionRevision(
     nextStopPrice,
     nextTargetPrice,
     ids,
+  };
+}
+
+export function validateBinanceUsdmOwnedProtectionClose(
+  request: BinanceUsdmOwnedProtectionCloseRequest,
+): ValidatedBinanceUsdmOwnedProtectionClose {
+  const closeIntentId = canonicalUuid(request.closeIntentId);
+  const current = canonicalOwnedProtection(request.current);
+  return {
+    closeIntentId,
+    current,
+    exitSide: current.direction === "LONG" ? "SELL" : "BUY",
+    closeClientOrderId: orderId(
+      "gpc",
+      closeIntentId.replaceAll("-", ""),
+    ),
   };
 }
 
@@ -266,6 +282,25 @@ function canonicalClientId(value: string): string {
     throw new Error("Binance owned client order ID is invalid");
   }
   return value;
+}
+
+function canonicalOwnedProtection(
+  value: BinanceUsdmOwnedProtection,
+): BinanceUsdmOwnedProtection {
+  const current = {
+    positionIntentId: canonicalUuid(value.positionIntentId),
+    symbol: canonicalSymbol(value.symbol),
+    direction: direction(value.direction),
+    quantity: canonicalPositiveDecimal(value.quantity, "current quantity"),
+    stopPrice: canonicalPositiveDecimal(value.stopPrice, "current stop price"),
+    targetPrice: canonicalPositiveDecimal(value.targetPrice, "current target price"),
+    stopClientAlgoId: canonicalClientId(value.stopClientAlgoId),
+    targetClientAlgoId: canonicalClientId(value.targetClientAlgoId),
+  };
+  if (current.stopClientAlgoId === current.targetClientAlgoId) {
+    throw new Error("Binance current stop and target identities must differ");
+  }
+  return current;
 }
 
 function canonicalSymbol(value: string): string {

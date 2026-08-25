@@ -37,6 +37,12 @@ Old and new protection may overlap during replacement. Every conditional order
 is reduce-only, and the old stop is never removed before the complete new pair
 is proven.
 
+Generic owned-position close consumes the current protection reference rather
+than original entry geometry. It proves the current pair, submits and proves one
+deterministic exact-current-quantity reduce-only market close, then cancels the
+current target before the current stop. A rejected, partial, ambiguous, or
+unproven close performs no protection cleanup; restart recovery is GET-only.
+
 Symbol-wide cancel-all is outside this contract. A close that is ambiguous or
 not found in one immediate query leaves native protection untouched. Every
 DELETE uses the same sanitized before-transport evidence and ambiguity rules as
