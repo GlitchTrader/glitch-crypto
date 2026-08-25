@@ -10,7 +10,7 @@
 - [x] T006 Add a dedicated Testnet preflight CLI with deterministic exit states.
 - [x] T007 Prove safe, unsafe, public-only, and production-origin cases.
 - [x] T008 Run the complete repository gate.
-- [ ] T009 Record the commit and validation evidence in Rail and GitHub issue #5.
+- [x] T009 Record the commit and validation evidence in Rail and GitHub issue #5.
 - [ ] T010 Run authenticated Testnet preflight with separately supplied credentials.
 
 T010 is runtime evidence. Source completion MUST NOT mark it complete.

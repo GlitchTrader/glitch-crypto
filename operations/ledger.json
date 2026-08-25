@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project": "glitch-crypto",
-  "updated": "2026-08-25T01:00:57Z",
+  "updated": "2026-08-25T01:09:48Z",
   "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
   "items": [
     {
@@ -62,7 +62,9 @@
         "Windows strict build and 34 of 34 deterministic tests passed after the direct-main public-evidence integration.",
         "Commit 5a784f6 implements a dormant Testnet/loopback-only protected mutation kernel with deterministic native identities, evidence-before-mutation, exact-query reconciliation, stop-before-target proof, and exact-quantity emergency flattening.",
         "Windows strict build and 47 of 47 deterministic tests passed for the protected mutation contract, including partial-entry flattening and GET-only restart reconstruction.",
-        "GitHub issue #5 records the source evidence while retaining authenticated Testnet preflight and bounded mutation acceptance as open gates."
+        "Commit 0b5b41b implements an authenticated GET-only Testnet preflight that fails closed on production, missing credentials, unsafe account configuration, existing exposure/orders, and malformed private snapshots.",
+        "Windows strict build and 53 of 53 deterministic tests passed after the Testnet preflight source increment.",
+        "GitHub issue #5 records the source evidence while retaining authenticated Testnet preflight execution and bounded mutation acceptance as open gates."
       ],
       "sources": [
         "https://github.com/GlitchTrader/glitch-crypto/issues/4",
@@ -70,8 +72,10 @@
         "operations/specs/GC-002/spec.md",
         "operations/specs/GC-002/public-evidence-spec.md",
         "operations/specs/GC-002/mutation-spec.md",
+        "operations/specs/GC-002/preflight-spec.md",
         "docs/BINANCE_PUBLIC_EVIDENCE.md",
-        "docs/BINANCE_MUTATION_CONTRACT.md"
+        "docs/BINANCE_MUTATION_CONTRACT.md",
+        "docs/BINANCE_TESTNET_PREFLIGHT.md"
       ],
       "skill_refs": [
         "wayfinder",
@@ -86,12 +90,13 @@
         "assignee": "AIbert (Codex)",
         "claimed_at": "2026-08-25T00:34:52Z"
       },
-      "notes": "Binance USD-M public Futures Testnet transport and replay are accepted as a sub-gate. The protected mutation lifecycle is implemented only as dormant deterministic source. Mainnet eligibility, authenticated private evidence, observed Testnet mutations, engine integration, native fill/protection acceptance, and production selection remain pending.",
+      "notes": "Binance USD-M public Futures Testnet transport and replay are accepted as a sub-gate. Protected mutation and authenticated preflight are implemented only as dormant deterministic source. No Testnet credentials were present in the delivery environment. Authenticated private evidence, observed Testnet mutations, engine integration, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
       "extensions": {
-        "active_spec": "operations/specs/GC-002/mutation-spec.md",
-        "phase": "binance-usdm-testnet-mutation-contract-implemented-runtime-evidence-pending",
+        "active_spec": "operations/specs/GC-002/preflight-spec.md",
+        "phase": "binance-usdm-source-gates-implemented-authenticated-testnet-preflight-pending",
         "public_testnet_transport": "accepted",
         "testnet_mutation_contract": "implemented_dormant",
+        "testnet_preflight_contract": "implemented_unrun",
         "authenticated_testnet_mutation_evidence": "pending",
         "production_mutation_venue": "not_accepted"
       }
