@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project": "glitch-crypto",
-  "updated": "2026-08-25T04:52:43Z",
+  "updated": "2026-08-25T04:59:44Z",
   "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
   "items": [
     {
@@ -120,7 +120,12 @@
         "The plan derives an optional partial from a requested percentage on the effective venue/policy step, prices LONG reduction at bid and SHORT reduction at ask, and blocks any result that weakens total protected equity or violates remaining minimums, open risk, daily loss, or the active floor.",
         "The dormant orchestrator now accepts protection revision only from a ready immutable management plan plus a separate permit bound to the complete plan hash and current position quantity; durable staging still precedes effects and restart recovery remains GET-only.",
         "Windows strict build and 138 of 138 deterministic tests passed for Phase Q.",
-        "GitHub issue #5 evidence: https://github.com/GlitchTrader/glitch-crypto/issues/5#issuecomment-5405399318."
+        "GitHub issue #5 evidence: https://github.com/GlitchTrader/glitch-crypto/issues/5#issuecomment-5405399318.",
+        "Commit 06e147f implements a dormant operator-only permit issuer that derives action, intent, BTCUSDT identity, maximum quantity, and proof SHA-256 from one fresh ready proof; caller-supplied authority fields are not accepted.",
+        "The same commit adds a policy-free effect adapter that delegates entry, revision, close, and all GET-only reconciliation calls exactly once to the accepted coordinators without retry, fallback, credential loading, client construction, or runtime selection.",
+        "Application startup, HTTP server, CLI, and configuration do not import or instantiate the dormant authority/effect composition.",
+        "Windows strict build and 142 of 142 deterministic tests passed for Phase R.",
+        "GitHub issue #5 evidence: https://github.com/GlitchTrader/glitch-crypto/issues/5#issuecomment-5405459436."
       ],
       "sources": [
         "https://github.com/GlitchTrader/glitch-crypto/issues/4",
@@ -147,6 +152,7 @@
         "operations/specs/GC-002/binance-entry-plan-spec.md",
         "operations/specs/GC-002/testnet-orchestrator-spec.md",
         "operations/specs/GC-002/management-risk-plan-spec.md",
+        "operations/specs/GC-002/testnet-authority-effects-spec.md",
         "operations/adrs/0005-binance-testnet-protected-mutation.md",
         "operations/adrs/0006-versioned-raw-market-provenance.md",
         "operations/adrs/0007-exact-public-depth-frame-provenance.md",
@@ -158,6 +164,7 @@
         "operations/adrs/0013-size-entry-from-venue-truth-not-model-quantity.md",
         "operations/adrs/0014-stage-before-bounded-testnet-effect.md",
         "operations/adrs/0015-prove-management-risk-before-revision-effect.md",
+        "operations/adrs/0016-derive-testnet-permits-from-exact-proof.md",
         "docs/BINANCE_EXECUTION_CONTEXT.md",
         "operations/evidence/GC-002/binance-mainnet-market-2026-08-24.jsonl.manifest.json",
         "operations/evidence/GC-002/binance-testnet-market-provenance-2026-08-25.jsonl.manifest.json",
@@ -181,10 +188,10 @@
         "assignee": "AIbert (Codex)",
         "claimed_at": "2026-08-25T00:34:52Z"
       },
-  "notes": "Binance USD-M public Futures Testnet transport, exact REST depth bootstrap, parsed depth replay, exact depth-frame provenance, and replay-grade aggregate-trade/mark-price provenance are accepted as sub-gates. Protected entry, original-entry close, partial reduction, stop-first protection replacement, generic current-owned close, durable ownership state, private-position/protection binding, venue-exact entry planning, management-risk planning, authenticated preflight, fail-closed non-authorizing contexts, and a bounded single-writer Testnet orchestrator are implemented only as deterministic source. No Testnet credential was used. Authenticated private evidence, observed Testnet mutations, runtime selection and permit issuance, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
+  "notes": "Binance USD-M public Futures Testnet transport, exact REST depth bootstrap, parsed depth replay, exact depth-frame provenance, and replay-grade aggregate-trade/mark-price provenance are accepted as sub-gates. Protected entry, original-entry close, partial reduction, stop-first protection replacement, generic current-owned close, durable ownership state, private-position/protection binding, venue-exact entry and management-risk planning, authenticated preflight, fail-closed non-authorizing contexts, a bounded single-writer Testnet orchestrator, operator-only permit derivation, and exact coordinator effect composition are implemented only as deterministic dormant source. No Testnet credential was used. Authenticated private evidence, observed Testnet mutations, runtime selection/instantiation, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
   "extensions": {
-    "active_spec": "operations/specs/GC-002/management-risk-plan-spec.md",
-    "phase": "protection-management-risk-plan-accepted-runtime-selection-and-authenticated-evidence-pending",
+    "active_spec": "operations/specs/GC-002/testnet-authority-effects-spec.md",
+    "phase": "dormant-testnet-authority-and-effect-composition-accepted-runtime-instantiation-and-evidence-pending",
         "public_testnet_transport": "accepted",
         "routed_public_market_testnet_transport": "observed",
         "routed_private_testnet_transport": "source_tested_runtime_pending",
@@ -206,9 +213,11 @@
     "testnet_execution_orchestrator": "implemented_dormant_entry_revision_close_fake_effect_tested",
     "testnet_mutation_permit_contract": "implemented_unissued",
     "testnet_protection_management_plan": "implemented_non_authorizing_source",
+    "testnet_permit_issuer": "implemented_dormant_operator_only_uninvoked",
+    "testnet_execution_effect_adapter": "implemented_dormant_exact_delegation",
     "private_account_state_contract": "v2_reconciliation_and_available_balance_truth",
     "binance_management_capability_gaps": "authenticated_runtime_and_native_effect_evidence",
-    "engine_integration": "pending_operator_permit_issuance_runtime_selection_and_authenticated_effect_adapter",
+    "engine_integration": "pending_runtime_selection_instantiation_and_operator_route",
         "authenticated_testnet_mutation_evidence": "pending",
         "production_mutation_venue": "not_accepted"
       }

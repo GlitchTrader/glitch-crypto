@@ -7,6 +7,6 @@
 - [x] R003 Add deterministic authority, freshness, identity, lifetime, delegation, and secret-boundary tests.
 - [x] R004 Update ontology, ADR, and execution documentation.
 - [x] R005 Run `npm.cmd run check`.
-- [ ] R006 Record GitHub/Rail evidence and push direct to `main`.
+- [x] R006 Record GitHub/Rail evidence and push direct to `main`.
 
 Stop at source composition. Do not expose, select, instantiate, deploy, or call an authenticated venue runtime.
