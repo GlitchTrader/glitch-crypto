@@ -64,6 +64,12 @@ Versioned operator policy containing daily target, usable limit, leverage, plann
 
 Immutable sanitized point-in-time evidence supplied to cognition. It is not an order and cannot mutate state.
 
+### RawMarketEvent
+
+Immutable provider payload retained before derived features or labels. A strict
+inspection may reject its identity or required fields but does not discard
+unknown provider extensions from evidence.
+
 ### TradingIntent
 
 Versioned decision with immutable UUID/body identity. It requests one supported action but contains no venue credential.

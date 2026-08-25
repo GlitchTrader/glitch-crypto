@@ -15,6 +15,7 @@ import {
 
 export type BinanceStreamEvidenceChannel =
   | "public-depth"
+  | "public-market"
   | "private-user"
   | "supervisor";
 

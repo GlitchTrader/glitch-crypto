@@ -131,7 +131,7 @@ function parseRecord(value: unknown, line: number): BinanceStreamEvidenceRecord 
   if (typeof record.recorded_utc !== "string" || Number.isNaN(Date.parse(record.recorded_utc))) {
     throw new Error(`invalid evidence timestamp at line ${line}`);
   }
-  if (!new Set(["public-depth", "private-user", "supervisor"]).has(String(record.channel))) {
+  if (!new Set(["public-depth", "public-market", "private-user", "supervisor"]).has(String(record.channel))) {
     throw new Error(`invalid evidence channel at line ${line}`);
   }
   if (!new Set(["message", "snapshot", "reconciliation", "transition", "keepalive", "error"]).has(String(record.kind))) {

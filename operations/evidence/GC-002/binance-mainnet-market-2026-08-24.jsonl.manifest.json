@@ -1,0 +1,31 @@
+{
+  "schema_version": "glitch.crypto.binance-usdm-market-evidence-report.v1",
+  "evidence_sha256": "07185347c6e1f6bdc0f2900b026f49d753d41c6de573904e4c7d8315669eb48c",
+  "mutation_authority": false,
+  "accepted_for_raw_replay": true,
+  "rejection_reasons": [],
+  "session_ids": [
+    "b88e4590-fe2f-49b8-bb02-2c7231283d99"
+  ],
+  "record_count": 260,
+  "first_recorded_utc": "2026-08-25T01:49:40.765Z",
+  "last_recorded_utc": "2026-08-25T01:49:55.781Z",
+  "duration_ms": 15016,
+  "sequence_contiguous": true,
+  "timestamps_monotonic": true,
+  "connecting_observed": true,
+  "running_observed": true,
+  "stopped_observed": true,
+  "symbol": "BTCUSDT",
+  "aggregate_trade_messages": 245,
+  "mark_price_messages": 12,
+  "error_records": 0,
+  "backoff_transitions": 0,
+  "invalid_messages": 0,
+  "non_increasing_aggregate_trade_ids": 0,
+  "non_monotonic_event_times": 0,
+  "first_event_time": 1787622582971,
+  "last_event_time": 1787622594299,
+  "first_aggregate_trade_id": 3425639828,
+  "last_aggregate_trade_id": 3425640072
+}
