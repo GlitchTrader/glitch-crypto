@@ -36,6 +36,12 @@ These categories never silently substitute for one another.
 
 Venue-bound account identity with balance and native position/order state. Equity is venue truth plus deterministically valued open exposure.
 
+### VenuePreflight
+
+Sanitized point-in-time proof that a named Testnet account, instrument contract,
+mode, leverage, collateral, fee, position, and order envelope meets declared
+prerequisites. It reports readiness but owns no mutation authority.
+
 ### UsablePot
 
 A sizing cap:

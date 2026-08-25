@@ -15,7 +15,8 @@ venue-native orders, fills, positions, and protection
 
 ## Current state
 
-The `GC-001` branch is the first executable vertical slice:
+`main` contains the executable protected-control-plane and the first Binance
+USD-M evidence/execution contracts:
 
 - strict Node 22/TypeScript gateway;
 - SQLite WAL/FULL-sync control and evidence store;
@@ -26,9 +27,15 @@ The `GC-001` branch is the first executable vertical slice:
 - configurable 0.5% daily protected-profit objective;
 - usable-pot limit, start/stop, flatten-all, PnL, trades, and journal;
 - authenticated numeric-loopback API and CLI;
-- shadow-safe fresh state.
+- shadow-safe fresh state;
+- sequence-correct public Testnet capture and deterministic replay;
+- GET-only authenticated account discovery and supervised stream contracts;
+- a dormant Testnet/loopback-only protected mutation and restart-reconciliation kernel;
+- a Testnet-only authenticated preflight that reports unsafe account settings without changing them.
 
-It does **not** mutate a real exchange and makes no profitability or live-readiness claim.
+The gateway still runs the paper venue only. Binance mutation has no engine, HTTP,
+or general operator binding. No production exchange mutation is available, and
+the repository makes no profitability or live-readiness claim.
 
 ## Authority
 
@@ -91,6 +98,9 @@ GLITCH_OPERATOR_TOKEN=<operator control token>
 ```
 
 The gateway rejects nonnumeric loopback binds and identical tokens.
+
+For Binance Futures Testnet account readiness, see
+[`docs/BINANCE_TESTNET_PREFLIGHT.md`](docs/BINANCE_TESTNET_PREFLIGHT.md).
 
 ## Run
 
