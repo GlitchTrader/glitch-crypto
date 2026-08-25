@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project": "glitch-crypto",
-  "updated": "2026-08-25T04:12:06Z",
+  "updated": "2026-08-25T04:23:27Z",
   "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
   "items": [
     {
@@ -105,7 +105,13 @@
         "Phase N also compiles a deeply immutable non-authorizing OwnedProtectionBinding from the durable pointer, fresh one-way private position truth, no unowned active ordinary order, and exact active reduce-only stop/target Algo evidence.",
         "Ambiguity cannot be downgraded to rejection; changed staged bodies, stale writers, corrupt storage, stream degradation, unowned exposure, and symbol, direction, quantity, geometry, activity, freshness, or identity contradictions fail closed.",
         "Windows strict build and 113 of 113 deterministic tests passed for Phase N.",
-        "GitHub issue #5 evidence: https://github.com/GlitchTrader/glitch-crypto/issues/5#issuecomment-5404982849."
+        "GitHub issue #5 evidence: https://github.com/GlitchTrader/glitch-crypto/issues/5#issuecomment-5404982849.",
+        "Commit 835add5 implements the Phase O non-authorizing ProtectedEntryPlan compiler from fresh venue context, UTC daily state, operator policy, and requested direction/stop/target; model quantity is not accepted.",
+        "Phase O sizes from executable best ask/bid, exact venue/policy tick and quantity steps, venue/policy minimums, configured leverage, available margin, trade/open-risk limits, daily loss, and active protected-equity floor.",
+        "Applied costs cannot undercut the authenticated taker-fee round trip and include stressed exit cost; conservative rounding floors balances/risk budget and rounds notional, margin, and planned loss upward.",
+        "Current equity activates a newly earned daily floor during compilation, while changing the daily target leaves entry geometry unchanged for identical risk inputs.",
+        "Windows strict build and 122 of 122 deterministic tests passed for Phase O, including 100, 1000, and 10000 USDT scaling fixtures.",
+        "GitHub issue #5 evidence: https://github.com/GlitchTrader/glitch-crypto/issues/5#issuecomment-5405160697."
       ],
       "sources": [
         "https://github.com/GlitchTrader/glitch-crypto/issues/4",
@@ -129,6 +135,7 @@
         "operations/specs/GC-002/protection-revision-spec.md",
         "operations/specs/GC-002/owned-position-close-spec.md",
         "operations/specs/GC-002/owned-protection-binding-spec.md",
+        "operations/specs/GC-002/binance-entry-plan-spec.md",
         "operations/adrs/0005-binance-testnet-protected-mutation.md",
         "operations/adrs/0006-versioned-raw-market-provenance.md",
         "operations/adrs/0007-exact-public-depth-frame-provenance.md",
@@ -137,6 +144,7 @@
         "operations/adrs/0010-replace-conditional-protection-stop-first.md",
         "operations/adrs/0011-close-current-owned-protection-not-original-entry.md",
         "operations/adrs/0012-bind-durable-ownership-to-private-venue-truth.md",
+        "operations/adrs/0013-size-entry-from-venue-truth-not-model-quantity.md",
         "docs/BINANCE_EXECUTION_CONTEXT.md",
         "operations/evidence/GC-002/binance-mainnet-market-2026-08-24.jsonl.manifest.json",
         "operations/evidence/GC-002/binance-testnet-market-provenance-2026-08-25.jsonl.manifest.json",
@@ -160,10 +168,10 @@
         "assignee": "AIbert (Codex)",
         "claimed_at": "2026-08-25T00:34:52Z"
       },
-  "notes": "Binance USD-M public Futures Testnet transport, exact REST depth bootstrap, parsed depth replay, exact depth-frame provenance, and replay-grade aggregate-trade/mark-price provenance are accepted as sub-gates. Protected entry, original-entry close, partial reduction, stop-first protection replacement, generic current-owned close, durable ownership state, private-position/protection binding, authenticated preflight, and fail-closed non-authorizing entry/management contexts are implemented only as deterministic source. No Testnet credential was used. Authenticated private evidence, observed Testnet mutations, safe asynchronous engine integration, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
+  "notes": "Binance USD-M public Futures Testnet transport, exact REST depth bootstrap, parsed depth replay, exact depth-frame provenance, and replay-grade aggregate-trade/mark-price provenance are accepted as sub-gates. Protected entry, original-entry close, partial reduction, stop-first protection replacement, generic current-owned close, durable ownership state, private-position/protection binding, venue-exact entry planning, authenticated preflight, and fail-closed non-authorizing entry/management contexts are implemented only as deterministic source. No Testnet credential was used. Authenticated private evidence, observed Testnet mutations, safe asynchronous engine integration, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
   "extensions": {
-    "active_spec": "operations/specs/GC-002/owned-protection-binding-spec.md",
-    "phase": "binance-usdm-durable-ownership-binding-accepted-async-engine-and-runtime-evidence-pending",
+    "active_spec": "operations/specs/GC-002/binance-entry-plan-spec.md",
+    "phase": "binance-usdm-venue-exact-entry-plan-accepted-async-engine-and-runtime-evidence-pending",
         "public_testnet_transport": "accepted",
         "routed_public_market_testnet_transport": "observed",
         "routed_private_testnet_transport": "source_tested_runtime_pending",
@@ -181,9 +189,10 @@
     "testnet_owned_position_close_contract": "implemented_dormant",
     "testnet_owned_protection_state": "implemented_dormant",
     "testnet_owned_protection_binding": "implemented_non_authorizing_source",
+    "testnet_protected_entry_plan": "implemented_non_authorizing_source",
     "private_account_state_contract": "v2_reconciliation_and_available_balance_truth",
     "binance_management_capability_gaps": "asynchronous_engine_adapter_and_authenticated_runtime_evidence",
-    "engine_integration": "pending_async_entry_management_context_consumer_and_runtime_selection",
+    "engine_integration": "pending_bounded_single_writer_async_orchestrator_and_runtime_selection",
         "authenticated_testnet_mutation_evidence": "pending",
         "production_mutation_venue": "not_accepted"
       }

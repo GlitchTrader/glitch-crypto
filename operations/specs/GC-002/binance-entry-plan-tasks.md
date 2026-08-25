@@ -14,7 +14,7 @@
 ## Verification and evidence
 
 - [x] O004 Run `npm.cmd run check` and record factual output.
-- [ ] O005 Update Rail and GitHub evidence, then push direct to `main`.
+- [x] O005 Update Rail and GitHub evidence, then push direct to `main`.
 
 ## Dependencies and stop lines
 
