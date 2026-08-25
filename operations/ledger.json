@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project": "glitch-crypto",
-  "updated": "2026-08-25T01:39:52Z",
+  "updated": "2026-08-25T01:51:49Z",
   "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
   "items": [
     {
@@ -67,7 +67,10 @@
         "GitHub issue #5 records the source evidence while retaining authenticated Testnet preflight execution and bounded mutation acceptance as open gates.",
         "The 2026-08-24 Binance WebSocket migration was applied: constructed depth, regular-market, and user-data sockets now use the official /public, /market, and /private routes.",
         "A bounded credential-free Futures Testnet probe observed live BTCUSDT depthUpdate and markPriceUpdate events on the routed public and market endpoints; authenticated private routing remains unobserved.",
-        "Windows strict build and 55 of 55 deterministic tests passed after route construction and route assertions were added."
+        "Windows strict build and 55 of 55 deterministic tests passed after route construction and route assertions were added.",
+        "Commit a36fabe adds a separate credential-free raw-market recorder for BTCUSDT aggregate trades and 1-second mark price with strict identity inspection, bounded JSONL retention, finite capture, and content-addressed verification.",
+        "The retained 15.016-second production-public fixture contains 245 aggregate trades and 12 mark-price updates in one contiguous lifecycle with zero errors, backoffs, invalid messages, non-increasing trade IDs, or non-monotonic per-family event times; canonical SHA-256 07185347c6e1f6bdc0f2900b026f49d753d41c6de573904e4c7d8315669eb48c.",
+        "Windows strict build and 60 of 60 deterministic tests passed after freezing the raw-market fixture."
       ],
       "sources": [
         "https://github.com/GlitchTrader/glitch-crypto/issues/4",
@@ -79,6 +82,9 @@
         "docs/BINANCE_PUBLIC_EVIDENCE.md",
         "docs/BINANCE_MUTATION_CONTRACT.md",
         "docs/BINANCE_TESTNET_PREFLIGHT.md",
+        "docs/BINANCE_MARKET_EVIDENCE.md",
+        "operations/specs/GC-002/market-evidence-spec.md",
+        "operations/evidence/GC-002/binance-mainnet-market-2026-08-24.jsonl.manifest.json",
         "operations/evidence/GC-002/binance-testnet-websocket-routing-2026-08-24.json",
         "https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/Important-WebSocket-Change-Notice"
       ],
@@ -102,6 +108,7 @@
         "public_testnet_transport": "accepted",
         "routed_public_market_testnet_transport": "observed",
         "routed_private_testnet_transport": "source_tested_runtime_pending",
+        "raw_mainnet_market_evidence": "accepted_for_replay_input",
         "testnet_mutation_contract": "implemented_dormant",
         "testnet_preflight_contract": "implemented_unrun",
         "authenticated_testnet_mutation_evidence": "pending",

@@ -8,4 +8,4 @@
 - [x] E006 Add focused event, route, lifecycle, and rejection tests.
 - [x] E007 Capture and verify a bounded external market session.
 - [x] E008 Run the full repository gate and record Rail evidence.
-- [ ] E009 Commit and push the accepted source and fixture to `main`.
+- [x] E009 Commit and push the accepted source and fixture to `main`.
