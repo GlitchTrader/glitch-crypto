@@ -9,4 +9,4 @@
 - [x] K007 Prove ready and comprehensive blocker cases deterministically.
 - [x] K008 Update ontology and record the architecture decision.
 - [x] K009 Run the complete repository gate.
-- [ ] K010 Update Rail and GitHub evidence, then push direct to main.
+- [x] K010 Update Rail and GitHub evidence, then push direct to main.

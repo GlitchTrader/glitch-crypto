@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project": "glitch-crypto",
-  "updated": "2026-08-25T03:13:07Z",
+  "updated": "2026-08-25T03:29:55Z",
   "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
   "items": [
     {
@@ -85,7 +85,12 @@
         "Windows strict build and 76 of 76 deterministic tests passed after freezing the replay-grade Testnet depth fixture.",
         "Commit c8ddd12 adds immutable version-3 exact public REST depth-bootstrap evidence before parsing, chronological pairing to the normalized snapshot, and separate parsed-book, exact-frame, and exact-session replay claims.",
         "A credential-free 8.065-second Futures Testnet capture retained one exact REST bootstrap paired to one parsed snapshot plus 34 replay-grade depth frames on one connection, with zero errors, backoffs, hash, payload, update, request, pairing, attribution, or receive-order faults; canonical SHA-256 b6063706916aa5b9ec2784a9b0bb4b4359d47be03f9a6ff2527c89c4522afb07.",
-        "Windows strict build and 81 of 81 deterministic tests passed after freezing the exact Testnet depth-session fixture."
+        "Windows strict build and 81 of 81 deterministic tests passed after freezing the exact Testnet depth-session fixture.",
+        "Commit 8683b88 adds the non-authorizing Phase K execution-context compiler: fresh preflight, depth, market, and private account truth must agree before a bounded Testnet entry exercise can be described as ready.",
+        "Private state v2 separates reconciliation observation time from provider event/transaction time and invalidates snapshot-only available balance on ACCOUNT_UPDATE; market status v2 resets current mark/trade summaries on every connection.",
+        "The context fails closed on stale, future, missing, disconnected, gapped, crossed, expired, buffered, mismatched, exposed, active-order, balance, fee, leverage, and instrument-contract conditions while retaining mutation_authority=false and engine_binding_authority=false.",
+        "Windows strict build and 85 of 85 deterministic tests passed for Phase K.",
+        "GitHub issue #5 evidence: https://github.com/GlitchTrader/glitch-crypto/issues/5#issuecomment-5404687950."
       ],
       "sources": [
         "https://github.com/GlitchTrader/glitch-crypto/issues/4",
@@ -105,10 +110,13 @@
         "operations/specs/GC-002/event-provenance-spec.md",
         "operations/specs/GC-002/depth-provenance-spec.md",
         "operations/specs/GC-002/snapshot-provenance-spec.md",
+        "operations/specs/GC-002/execution-context-spec.md",
         "operations/adrs/0005-binance-testnet-protected-mutation.md",
         "operations/adrs/0006-versioned-raw-market-provenance.md",
         "operations/adrs/0007-exact-public-depth-frame-provenance.md",
         "operations/adrs/0008-exact-depth-bootstrap-provenance.md",
+        "operations/adrs/0009-fail-closed-execution-context-before-engine-binding.md",
+        "docs/BINANCE_EXECUTION_CONTEXT.md",
         "operations/evidence/GC-002/binance-mainnet-market-2026-08-24.jsonl.manifest.json",
         "operations/evidence/GC-002/binance-testnet-market-provenance-2026-08-25.jsonl.manifest.json",
         "operations/evidence/GC-002/binance-testnet-depth-provenance-2026-08-25.jsonl.manifest.json",
@@ -130,10 +138,10 @@
         "assignee": "AIbert (Codex)",
         "claimed_at": "2026-08-25T00:34:52Z"
       },
-      "notes": "Binance USD-M public Futures Testnet transport, exact REST depth bootstrap, parsed depth replay, exact depth-frame provenance, and replay-grade aggregate-trade/mark-price provenance are accepted as sub-gates. Protected entry, close, and authenticated preflight are implemented only as dormant deterministic source. No Testnet credential was used. Authenticated private evidence, observed Testnet mutations, engine integration, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
+      "notes": "Binance USD-M public Futures Testnet transport, exact REST depth bootstrap, parsed depth replay, exact depth-frame provenance, and replay-grade aggregate-trade/mark-price provenance are accepted as sub-gates. Protected entry, close, authenticated preflight, and a fail-closed non-authorizing execution context are implemented only as deterministic source. No Testnet credential was used. Authenticated private evidence, observed Testnet mutations, management parity, safe asynchronous engine integration, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
       "extensions": {
-        "active_spec": "operations/specs/GC-002/snapshot-provenance-spec.md",
-        "phase": "binance-usdm-exact-public-market-and-depth-session-provenance-accepted-authenticated-testnet-evidence-pending",
+        "active_spec": "operations/specs/GC-002/execution-context-spec.md",
+        "phase": "binance-usdm-fail-closed-testnet-execution-context-implemented-authenticated-runtime-and-engine-integration-pending",
         "public_testnet_transport": "accepted",
         "routed_public_market_testnet_transport": "observed",
         "routed_private_testnet_transport": "source_tested_runtime_pending",
@@ -146,6 +154,10 @@
         "testnet_mutation_contract": "implemented_dormant",
         "testnet_protected_close_contract": "implemented_dormant",
         "testnet_preflight_contract": "implemented_unrun",
+        "testnet_execution_context": "implemented_non_authorizing_source",
+        "private_account_state_contract": "v2_reconciliation_and_available_balance_truth",
+        "binance_management_capability_gaps": "partial_reduction_stop_amendment_target_amendment",
+        "engine_integration": "pending_async_context_consumer_and_management_parity",
         "authenticated_testnet_mutation_evidence": "pending",
         "production_mutation_venue": "not_accepted"
       }
