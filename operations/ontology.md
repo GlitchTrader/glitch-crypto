@@ -78,6 +78,21 @@ one supported action, the exact plan/binding body hash, maximum quantity, and a
 short validity interval. It is neither a venue credential nor model authority;
 later operator-token runtime code owns issuance.
 
+### TestnetPermitIssuer
+
+Dormant operator-secret capability that derives every authority-bearing permit
+field from one fresh ready proof. It accepts no caller-supplied action, symbol,
+quantity, or proof hash; rejects model/missing authority; emits no secret; and
+cannot select or construct a venue runtime. The class existing in source does
+not mean a permit has been issued.
+
+### TestnetExecutionEffectsAdapter
+
+Policy-free composition from the orchestrator effect port to the accepted
+protected-entry and protection-revision coordinators. Each mutation and GET-only
+reconciliation call delegates exactly once. It adds no retry, inference,
+fallback, credential loading, client construction, or runtime selection.
+
 ### TestnetExecutionOrchestrator
 
 Dormant single-writer coordinator that validates a fresh proof plus permit,

@@ -135,3 +135,22 @@ No runtime imports or selects the orchestrator, no code issues permits, and no
 credential or public mutation route was added. Authenticated execution remains
 unsupported until separate runtime-selection, permit-issuance, and observed
 Testnet evidence gates are accepted.
+
+## Dormant authority and effect composition
+
+The source now contains an operator-only permit issuer and a policy-free effect
+adapter. The issuer validates the configured operator bearer secret, then
+derives action, intent, BTCUSDT identity, maximum quantity, and proof SHA-256
+from one fresh ready entry plan, management plan, or owned-position binding.
+Permit validity defaults to 30 seconds and cannot exceed five minutes. Model,
+missing, stale, blocked, wrong-symbol, or malformed proof/authority is rejected;
+the resulting permit contains no secret.
+
+The effect adapter delegates entry and entry reconciliation to the accepted
+protected-entry coordinator, and revision, close, and their reconciliation to
+the accepted protection-revision coordinator. It contains no retry or fallback
+policy, preserving ambiguity as durable query-only reconciliation.
+
+This composition is dormant. Application startup, the local HTTP server, and
+the CLI do not import it; no environment credential is read, no mutation client
+is constructed, no runtime is selected, and no permit or venue effect occurs.
