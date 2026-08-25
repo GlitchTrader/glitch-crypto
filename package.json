@@ -17,7 +17,8 @@
     "binance:preflight": "node --enable-source-maps dist/src/venue/binance-usdm/preflight-cli.js",
     "binance:stream": "node --enable-source-maps dist/src/venue/binance-usdm/stream-cli.js",
     "binance:evidence": "node --enable-source-maps dist/src/venue/binance-usdm/evidence-cli.js",
-    "binance:market-evidence": "node --enable-source-maps dist/src/venue/binance-usdm/market-evidence-cli.js"
+    "binance:market-evidence": "node --enable-source-maps dist/src/venue/binance-usdm/market-evidence-cli.js",
+    "binance:private-evidence": "node --enable-source-maps dist/src/venue/binance-usdm/private-evidence-cli.js"
   },
   "devDependencies": {
     "typescript": "5.8.3"
