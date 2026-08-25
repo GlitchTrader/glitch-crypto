@@ -185,6 +185,10 @@ test("public depth buffers before snapshot and reconnects on continuity loss", a
   if (!publicSocket) {
     throw new Error("public socket was not created");
   }
+  assert.equal(
+    publicSocket.url,
+    "wss://fstream.binance.com/public/ws/btcusdt@depth@100ms",
+  );
   publicSocket.open();
   publicSocket.message({
     e: "depthUpdate",
@@ -247,6 +251,10 @@ test("private stream buffers events through REST reconciliation and rotates afte
   if (!privateSocket) {
     throw new Error("private socket was not created");
   }
+  assert.equal(
+    privateSocket.url,
+    "wss://fstream.binance.com/private/ws?listenKey=private-listen-key-1&events=ORDER_TRADE_UPDATE/ACCOUNT_UPDATE/listenKeyExpired",
+  );
   privateSocket.open();
   privateSocket.message({
     e: "ACCOUNT_UPDATE",

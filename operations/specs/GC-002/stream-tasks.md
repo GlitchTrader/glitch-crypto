@@ -15,3 +15,4 @@
 - [x] B013 Open the stacked draft PR and record CI evidence.
 - [ ] B014 Capture observed public-stream fixtures.
 - [ ] B015 Capture authenticated private-stream fixtures.
+- [x] B016 Migrate constructed sockets to the current `/public`, `/market`, and `/private` route contract and retain Testnet route evidence.

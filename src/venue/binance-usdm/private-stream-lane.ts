@@ -7,6 +7,7 @@ import { redactProviderEvidence } from "./redaction.js";
 import type { BinanceStreamEvidenceSink } from "./stream-evidence.js";
 import {
   SERVICE_RESTART_CLOSE,
+  binancePrivateStreamUrl,
   binanceReconnectDelay,
   closeBinanceSocket,
   decodeBinanceMessageData,
@@ -117,7 +118,7 @@ export class BinancePrivateStreamLane {
       }
       this.listenKey = listenKey;
       const socket = this.options.socketFactory.create(
-        `${this.options.streamsBaseUrl}/ws/${encodeURIComponent(listenKey)}`,
+        binancePrivateStreamUrl(this.options.streamsBaseUrl, listenKey),
       );
       this.socket = socket;
       this.record("transition", {

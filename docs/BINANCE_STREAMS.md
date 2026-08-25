@@ -44,6 +44,11 @@ GLITCH_BINANCE_USDM_EVIDENCE_PATH=./data/binance-usdm-stream.jsonl
 GLITCH_BINANCE_USDM_EVIDENCE_MAX_BYTES=33554432
 ```
 
+The configured value is a bare origin. Glitch constructs the current Binance
+routes itself: depth under `/public`, regular market streams under `/market`,
+and listen-key user data under `/private`. Do not put a route path in the
+environment value.
+
 The writer maintains one active file and one `.1` backup. Every record has a session ID and sequence. Credentials, signatures, tokens, sensitive-key fields, and active listen keys are redacted.
 
 ## Replay

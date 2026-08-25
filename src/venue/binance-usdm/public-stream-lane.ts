@@ -7,6 +7,7 @@ import {
 import type { BinanceStreamEvidenceSink } from "./stream-evidence.js";
 import {
   SERVICE_RESTART_CLOSE,
+  binanceMarketStreamUrl,
   binanceReconnectDelay,
   closeBinanceSocket,
   decodeBinanceMessageData,
@@ -88,7 +89,11 @@ export class BinancePublicStreamLane {
     this.orderBook.reset();
     const streamName = `${this.options.symbol.toLowerCase()}@depth@100ms`;
     const socket = this.options.socketFactory.create(
-      `${this.options.streamsBaseUrl}/ws/${streamName}`,
+      binanceMarketStreamUrl(
+        this.options.streamsBaseUrl,
+        "public",
+        [streamName],
+      ),
     );
     this.socket = socket;
     this.record("transition", {

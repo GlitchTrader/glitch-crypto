@@ -32,3 +32,13 @@ Create a second stacked GC-002 branch that:
 - A reconnect never resumes from elapsed time or assumed continuity; it obtains a new snapshot/reconciliation boundary.
 - Evidence I/O is local and bounded. It is not sent to Hermes by default.
 - Green tests prove state-machine and replay contracts, not external uptime, account access, or production readiness.
+
+## 2026-08-24 route migration amendment
+
+Binance now partitions USDⓈ-M stream traffic under `/public`, `/market`, and
+`/private`; unrouted connections receive only public data. Constructed depth,
+regular-market, and user-data sockets therefore use their assigned route. A
+credential-free Futures Testnet probe retained under `operations/evidence/GC-002/`
+observed live events on the routed public and market endpoints. Private routing
+remains source-tested but requires authenticated runtime evidence before
+acceptance.

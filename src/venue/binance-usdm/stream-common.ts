@@ -188,6 +188,42 @@ export function normalizeBinanceStreamsBaseUrl(value: string): string {
   return parsed.origin;
 }
 
+export type BinanceMarketStreamRoute = "public" | "market";
+
+const BINANCE_STREAM_NAME = /^[a-z0-9!][A-Za-z0-9!_.@-]{1,127}$/;
+const BINANCE_PRIVATE_EVENTS = [
+  "ORDER_TRADE_UPDATE",
+  "ACCOUNT_UPDATE",
+  "listenKeyExpired",
+] as const;
+
+export function binanceMarketStreamUrl(
+  streamsBaseUrl: string,
+  route: BinanceMarketStreamRoute,
+  streams: readonly string[],
+): string {
+  if (streams.length === 0 || streams.length > 1_024) {
+    throw new Error("Binance stream URL requires 1-1024 streams");
+  }
+  for (const stream of streams) {
+    if (!BINANCE_STREAM_NAME.test(stream)) {
+      throw new Error(`invalid Binance stream name: ${stream}`);
+    }
+  }
+  return `${streamsBaseUrl}/${route}/ws/${streams.join("/")}`;
+}
+
+export function binancePrivateStreamUrl(
+  streamsBaseUrl: string,
+  listenKey: string,
+): string {
+  if (!listenKey.trim()) {
+    throw new Error("Binance listen key is required");
+  }
+  const events = BINANCE_PRIVATE_EVENTS.map(encodeURIComponent).join("/");
+  return `${streamsBaseUrl}/private/ws?listenKey=${encodeURIComponent(listenKey)}&events=${events}`;
+}
+
 export async function decodeBinanceMessageData(value: unknown): Promise<string> {
   if (typeof value === "string") {
     return value;

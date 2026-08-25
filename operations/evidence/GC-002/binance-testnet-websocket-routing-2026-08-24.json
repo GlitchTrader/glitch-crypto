@@ -1,0 +1,25 @@
+{
+  "schema_version": "glitch.crypto.external-observation.v1",
+  "observed_utc": "2026-08-25T01:37:00Z",
+  "environment": "binance-usdm-futures-testnet",
+  "authority": "credential-free-read-only",
+  "origin": "wss://fstream.binancefuture.com",
+  "observations": [
+    {
+      "route": "/public/ws/btcusdt@depth@100ms",
+      "result": "message_received",
+      "event_type": "depthUpdate",
+      "symbol": "BTCUSDT"
+    },
+    {
+      "route": "/market/ws/btcusdt@markPrice@1s",
+      "result": "message_received",
+      "event_type": "markPriceUpdate",
+      "symbol": "BTCUSDT"
+    }
+  ],
+  "credentials_used": false,
+  "mutation_authority": false,
+  "claim_boundary": "This proves routed public and market delivery at observation time. It does not prove private routing, uptime, ordering, replay, mutation, or production readiness.",
+  "official_contract": "https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/Important-WebSocket-Change-Notice"
+}

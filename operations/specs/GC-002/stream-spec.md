@@ -6,9 +6,9 @@ Continuously observe Binance USDⓈ-M public depth and private account/order tru
 
 ## Functional requirements
 
-### FR-B001 Native transport
+### FR-B001 Native transport and routing
 
-The runtime MUST use the Node 22 browser-compatible `WebSocket` through an injectable socket factory. Production defaults MUST use the official Binance USDⓈ-M streams origin. Nonsecure `ws:` MUST be accepted only for loopback test infrastructure.
+The runtime MUST use the Node 22 browser-compatible `WebSocket` through an injectable socket factory. Production defaults MUST use the official Binance USDⓈ-M streams origin. Diff-depth MUST use `/public`, aggregate-trade and mark-price MUST use `/market`, and listen-key events MUST use `/private`. Private subscriptions MUST explicitly request the order, account, and listen-key-expiry events understood by the reducer. Nonsecure `ws:` MUST be accepted only for loopback test infrastructure.
 
 ### FR-B002 Public stream bootstrap
 
@@ -55,6 +55,7 @@ An operator stop MUST cancel reconnect/keepalive timers, invalidate old epochs, 
 - `mutation_authority` is always `false`.
 - No order, cancel, amend, leverage, margin-type, or position-mode method exists.
 - Private WebSocket URLs and listen keys never enter evidence or status.
+- Unrouted production WebSocket URLs are forbidden in constructed connections.
 - REST synchronization precedes promotion to `running`.
 - Gaps cause resynchronization, never best-effort continuation.
 - Failed evidence persistence cannot authorize exposure.

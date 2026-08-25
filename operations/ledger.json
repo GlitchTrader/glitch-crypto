@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project": "glitch-crypto",
-  "updated": "2026-08-25T01:09:48Z",
+  "updated": "2026-08-25T01:39:52Z",
   "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
   "items": [
     {
@@ -64,7 +64,10 @@
         "Windows strict build and 47 of 47 deterministic tests passed for the protected mutation contract, including partial-entry flattening and GET-only restart reconstruction.",
         "Commit 0b5b41b implements an authenticated GET-only Testnet preflight that fails closed on production, missing credentials, unsafe account configuration, existing exposure/orders, and malformed private snapshots.",
         "Windows strict build and 53 of 53 deterministic tests passed after the Testnet preflight source increment.",
-        "GitHub issue #5 records the source evidence while retaining authenticated Testnet preflight execution and bounded mutation acceptance as open gates."
+        "GitHub issue #5 records the source evidence while retaining authenticated Testnet preflight execution and bounded mutation acceptance as open gates.",
+        "The 2026-08-24 Binance WebSocket migration was applied: constructed depth, regular-market, and user-data sockets now use the official /public, /market, and /private routes.",
+        "A bounded credential-free Futures Testnet probe observed live BTCUSDT depthUpdate and markPriceUpdate events on the routed public and market endpoints; authenticated private routing remains unobserved.",
+        "Windows strict build and 55 of 55 deterministic tests passed after route construction and route assertions were added."
       ],
       "sources": [
         "https://github.com/GlitchTrader/glitch-crypto/issues/4",
@@ -75,7 +78,9 @@
         "operations/specs/GC-002/preflight-spec.md",
         "docs/BINANCE_PUBLIC_EVIDENCE.md",
         "docs/BINANCE_MUTATION_CONTRACT.md",
-        "docs/BINANCE_TESTNET_PREFLIGHT.md"
+        "docs/BINANCE_TESTNET_PREFLIGHT.md",
+        "operations/evidence/GC-002/binance-testnet-websocket-routing-2026-08-24.json",
+        "https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/Important-WebSocket-Change-Notice"
       ],
       "skill_refs": [
         "wayfinder",
@@ -93,8 +98,10 @@
       "notes": "Binance USD-M public Futures Testnet transport and replay are accepted as a sub-gate. Protected mutation and authenticated preflight are implemented only as dormant deterministic source. No Testnet credentials were present in the delivery environment. Authenticated private evidence, observed Testnet mutations, engine integration, native fill/protection acceptance, mainnet eligibility, and production selection remain pending.",
       "extensions": {
         "active_spec": "operations/specs/GC-002/preflight-spec.md",
-        "phase": "binance-usdm-source-gates-implemented-authenticated-testnet-preflight-pending",
+        "phase": "binance-usdm-routed-stream-and-source-gates-implemented-authenticated-testnet-preflight-pending",
         "public_testnet_transport": "accepted",
+        "routed_public_market_testnet_transport": "observed",
+        "routed_private_testnet_transport": "source_tested_runtime_pending",
         "testnet_mutation_contract": "implemented_dormant",
         "testnet_preflight_contract": "implemented_unrun",
         "authenticated_testnet_mutation_evidence": "pending",
