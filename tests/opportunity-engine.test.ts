@@ -11,7 +11,7 @@ function book(bidQuantity: string, askQuantity: string): BinanceOrderBookView {
     status: "ready",
     symbol: "BTCUSDT",
     update_id: 1,
-    event_time: BASE_TIME,
+    event_time: BASE_TIME + 14_000,
     transaction_time: BASE_TIME,
     best_bid: ["60000.0", bidQuantity],
     best_ask: ["60000.1", askQuantity],
@@ -80,6 +80,9 @@ test("live directional flow outside costs and noise produces an actionable long 
   assert.ok((snapshot.economics.conservative_edge_bps ?? 0) > 0);
   assert.ok((snapshot.geometry.suggested_target_price ?? 0) > 60_054);
   assert.ok((snapshot.geometry.suggested_stop_price ?? 0) < 60_054);
+  // A fresh book must not make an old mark price fresh.
+  value.updateBook({ ...book("12", "2"), event_time: BASE_TIME + 30_000 });
+  assert.equal(value.snapshot(BASE_TIME + 30_000).state, "stale");
 });
 
 test("mixed micro-movement consumed by friction remains no trade", () => {

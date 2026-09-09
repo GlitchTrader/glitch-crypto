@@ -323,6 +323,12 @@ export class GlitchDatabase {
     this.db.prepare("DELETE FROM positions WHERE tranche_id = ?").run(trancheId);
   }
 
+  getIntentRequest(intentId: string): unknown {
+    const row = this.db.prepare("SELECT request_json FROM intents WHERE intent_id = ?").get(intentId) as
+      { request_json: string } | undefined;
+    return row ? JSON.parse(row.request_json) : null;
+  }
+
   getIntent(intentId: string): StoredIntent | null {
     const row = this.db.prepare("SELECT body_hash, response_json FROM intents WHERE intent_id = ?").get(intentId) as
       | { body_hash: string; response_json: string | null }

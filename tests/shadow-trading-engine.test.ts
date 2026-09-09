@@ -186,3 +186,48 @@ function runtimeSnapshot(): BinanceShadowRuntimeSnapshot {
     },
   };
 }
+
+test("durable receipt replay survives consumed events and reconstructed engine", () => {
+  const database = new GlitchDatabase(":memory:", 100_000, 6_100_000);
+  database.setGatewayMode("shadow");
+  const engine = new ShadowTradingEngine(database, new PaperVenue());
+  engine.start();
+  const runtime = new FixedRuntime(runtimeSnapshot());
+  engine.attachRuntime(runtime);
+  const packet = engine.getPacket();
+  const intent = { schema_version: "glitch.crypto.intent.v1", intent_id: randomUUID(),
+    packet_id: packet.packet_id, account: "paper-main", instrument: "BTCUSDT-PERP",
+    action: "ENTER_LONG", stop_price: 60_500, target_price: 62_500, reason: "Replay test" };
+  const first = engine.submitIntent(intent);
+  assert.equal(first.accepted, true);
+  const restarted = new ShadowTradingEngine(database, new PaperVenue());
+  restarted.attachRuntime(runtime);
+  const replay = restarted.submitIntent(intent);
+  assert.equal(replay.accepted, true);
+  assert.equal(replay.replayed, true);
+  assert.equal(database.getPositions().length, 1);
+  const position = (restarted.getState().positions as Record<string, unknown>[])[0]!;
+  assert.equal((position.original_intent as Record<string, unknown>).reason, "Replay test");
+  assert.equal((position.original_receipt as Record<string, unknown>).accepted, true);
+  assert.equal(restarted.submitIntent({ ...intent, target_price: 63_000 }).state, "conflict");
+  database.close();
+});
+
+test("stale or stopped live feed cannot admit new exposure with an unexpired event", () => {
+  const database = new GlitchDatabase(":memory:", 100_000, 6_100_000);
+  database.setGatewayMode("shadow");
+  const engine = new ShadowTradingEngine(database, new PaperVenue());
+  engine.start();
+  const runtime = new FixedRuntime(runtimeSnapshot());
+  engine.attachRuntime(runtime);
+  const packet = engine.getPacket();
+  const intent = { schema_version: "glitch.crypto.intent.v1", intent_id: randomUUID(),
+    packet_id: packet.packet_id, account: "paper-main", instrument: "BTCUSDT-PERP",
+    action: "ENTER_LONG", stop_price: 60_500, target_price: 62_500, reason: "Freshness test" };
+  runtime.value.market_observation.state = "stale";
+  assert.equal(engine.submitIntent(intent).reason, "live_market_evidence_not_fresh");
+  runtime.value.status.running = false;
+  assert.equal(engine.submitIntent(intent).accepted, false);
+  assert.equal(database.getPositions().length, 0);
+  database.close();
+});

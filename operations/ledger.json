@@ -5,6 +5,17 @@
   "roadmap_ref": "https://github.com/GlitchTrader/glitch-crypto/issues/1",
   "items": [
     {
+      "id": "GC-005",
+      "title": "Activate isolated live-market paper observation with inherited NT safeguards",
+      "status": "in_progress",
+      "priority": "P0",
+      "owner_role": "builder",
+      "depends_on": ["GC-001"],
+      "sources": ["operations/specs/GC-005/spec.md"],
+      "notes": "User-authorized paper-only lane. Does not accept GC-002 real venue mutation or GC-003 calibration.",
+      "evidence": []
+    },
+    {
       "id": "GC-001",
       "title": "Establish the protected daily-lock control plane",
       "status": "done",

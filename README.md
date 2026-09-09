@@ -37,6 +37,19 @@ The gateway still runs the paper venue only. Binance mutation has no engine, HTT
 or general operator binding. No production exchange mutation is available, and
 the repository makes no profitability or live-readiness claim.
 
+The `binance-shadow` runtime supplies live public BTCUSDT depth, trades and mark
+prices to that paper venue, with completed one-minute candles and six-hour price
+context. The experimental microstructure baseline is a diagnostic, not the gate
+that decides whether Hermes may think. Healthy flat reviews default to five
+minutes and position reviews to one minute. Exact intent replay precedes event
+expiry checks; stopped/stale events cannot create new exposure.
+
+This paper engine uses mark-sampled protection and configured fees. It does not
+simulate queue position, full spread/slippage, funding cashflows, liquidation,
+or venue outage execution. Paper PnL is not an executable profitability claim.
+Raw stream capture is a bounded rolling buffer; decision packets and receipts
+are retained separately by the profile. Do not call it a permanent tick archive.
+
 ## Authority
 
 ```text

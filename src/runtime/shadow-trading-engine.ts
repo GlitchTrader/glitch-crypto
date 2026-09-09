@@ -20,6 +20,7 @@ const ACTIONS_REQUIRING_CURRENT_EVENT = new Set([
   "HOLD",
   "MOVE_STOP",
   "MOVE_TARGET",
+  "NOTHING",
 ]);
 
 export class ShadowTradingEngine extends TradingEngine {
@@ -52,6 +53,11 @@ export class ShadowTradingEngine extends TradingEngine {
     const liveMarket = runtime?.market_observation.market;
     return {
       ...base,
+      positions: (base.positions as Record<string, unknown>[]).map((position) => ({
+        ...position,
+        original_intent: this.database.getIntentRequest(String(position.intent_id)),
+        original_receipt: this.database.getIntent(String(position.intent_id))?.response ?? null,
+      })),
       market: liveMarket
         ? {
             ...baseMarket,
@@ -80,6 +86,7 @@ export class ShadowTradingEngine extends TradingEngine {
     const core = {
       ...withoutPacketId(base),
       market_observation: runtime?.market_observation ?? null,
+      price_context: runtime?.price_context ?? null,
       decision_event: runtime?.decision_event ?? null,
       runtime: runtime?.status ?? {
         mode: "paper",
@@ -101,17 +108,25 @@ export class ShadowTradingEngine extends TradingEngine {
     const record = objectValue(input);
     const action = typeof record.action === "string" ? record.action : "";
     const packetId = typeof record.packet_id === "string" ? record.packet_id : "";
+    // Durable identity outranks event expiry/consumption; the base engine checks
+    // body conflicts and returns the original receipt without a second effect.
+    if (typeof record.intent_id === "string" && this.database.getIntent(record.intent_id)) {
+      return super.submitIntent(input);
+    }
     const runtime = this.runtime?.snapshot() ?? null;
     const binding = packetId ? this.packetBindings.get(packetId) : undefined;
     const currentEvent = runtime?.decision_event ?? null;
 
     if (
       runtime?.status.mode === "binance-shadow" &&
-      runtime.status.running &&
       ACTIONS_REQUIRING_CURRENT_EVENT.has(action) &&
-      !bindingMatchesCurrentEvent(binding, currentEvent)
+      (!runtime.status.running || !bindingMatchesCurrentEvent(binding, currentEvent))
     ) {
       return rejectedReceipt(input, "intent_packet_is_not_bound_to_current_decision_event");
+    }
+    if (runtime && ACTIONS_REQUIRING_CURRENT_EVENT.has(action) &&
+        !["ready", "actionable"].includes(runtime.market_observation.state)) {
+      return rejectedReceipt(input, "live_market_evidence_not_fresh");
     }
 
     const receipt = super.submitIntent(input);

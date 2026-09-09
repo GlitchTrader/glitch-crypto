@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { completedCandles, describePriceContext } from "./price-context.js";
 import type { TradingEngine } from "../core/trading-engine.js";
 import {
   CryptoOpportunityEngine,
@@ -82,6 +83,7 @@ export interface BinanceShadowRuntimeSnapshot {
   status: BinanceShadowRuntimeStatus;
   market_observation: CryptoOpportunitySnapshot;
   decision_event: ShadowDecisionEvent | null;
+  price_context?: Record<string, unknown> | null;
 }
 
 export interface ShadowRuntimeProvider {
@@ -102,6 +104,9 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
   private lastEvaluationMs = 0;
   private lastCandidateEventMs = 0;
   private lastPositionEventMs = 0;
+  private priceContext: Record<string, unknown> | null = null;
+  private contextTimer: ReturnType<typeof setInterval> | null = null;
+  private contextRefreshing = false;
 
   constructor(
     private readonly engine: TradingEngine,
@@ -155,8 +160,10 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
     this.startedUtc = new Date().toISOString();
     this.lastError = null;
     try {
+      await this.refreshPriceContext();
       await this.depthSupervisor.start(this.config.includePrivate);
       this.marketRecorder.start();
+      this.contextTimer = setInterval(() => { void this.refreshPriceContext(); }, 60_000);
       return this.snapshot();
     } catch (error) {
       this.running = false;
@@ -172,6 +179,8 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
       return this.snapshot();
     }
     this.running = false;
+    if (this.contextTimer) clearInterval(this.contextTimer);
+    this.contextTimer = null;
     this.latestDecisionEvent = null;
     this.marketRecorder.stop();
     await this.depthSupervisor.stop();
@@ -195,6 +204,8 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
   snapshot(): BinanceShadowRuntimeSnapshot {
     const depth = this.depthSupervisor.status();
     const market = this.marketRecorder.status();
+    // Re-evaluate age even when all sockets stop delivering messages.
+    this.latestObservation = this.opportunity.snapshot(Date.now());
     return {
       status: {
         schema_version: "glitch.crypto.binance-shadow-runtime.v1",
@@ -218,6 +229,7 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
         latest_event_id: this.latestDecisionEvent?.event_id ?? null,
       },
       market_observation: this.latestObservation,
+      price_context: this.priceContext,
       decision_event: this.latestDecisionEvent
         ? {
             ...this.latestDecisionEvent,
@@ -225,6 +237,21 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
           }
         : null,
     };
+  }
+
+  private async refreshPriceContext(): Promise<void> {
+    if (this.contextRefreshing) return;
+    this.contextRefreshing = true;
+    try {
+      const url = `${this.config.baseUrl}/fapi/v1/klines?symbol=${encodeURIComponent(this.config.symbol)}&interval=1m&limit=361`;
+      const response = await fetch(url, { signal: AbortSignal.timeout(this.config.timeoutMs) });
+      if (!response.ok) throw new Error(`public klines HTTP ${response.status}`);
+      this.priceContext = describePriceContext(completedCandles(await response.json(), Date.now()));
+    } catch (error) {
+      this.lastError = errorMessage(error);
+    } finally {
+      this.contextRefreshing = false;
+    }
   }
 
   private observeEvidence(record: BinanceStreamEvidenceRecord): void {
@@ -280,6 +307,11 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
     }
     this.lastEvaluationMs = nowMs;
     this.latestObservation = this.opportunity.snapshot(nowMs);
+    if (!this.engine.database.getControl().running ||
+        !["ready", "actionable"].includes(this.latestObservation.state)) {
+      this.latestDecisionEvent = null;
+      return;
+    }
     const positions = this.engine.database.getPositions();
     const current = this.latestDecisionEvent;
 
@@ -308,32 +340,21 @@ export class BinanceShadowRuntime implements ShadowRuntimeProvider {
     if (current?.event_type === "POSITION") {
       this.latestDecisionEvent = null;
     }
-    if (!this.latestObservation.actionable) {
-      if (this.latestDecisionEvent?.event_type === "CANDIDATE") {
-        this.latestDecisionEvent = null;
-      }
-      return;
-    }
-
     const candidate = this.latestDecisionEvent;
     if (
       candidate?.event_type === "CANDIDATE" &&
-      eventIsFresh(candidate, nowMs) &&
-      candidate.suggested_action === this.latestObservation.action
+      eventIsFresh(candidate, nowMs)
     ) {
       return;
     }
-    const directionChanged =
-      candidate?.event_type === "CANDIDATE" &&
-      candidate.suggested_action !== this.latestObservation.action;
-    if (!directionChanged && nowMs - this.lastCandidateEventMs < this.config.candidateCooldownMs) {
+    if (nowMs - this.lastCandidateEventMs < this.config.candidateCooldownMs) {
       return;
     }
     this.lastCandidateEventMs = nowMs;
     this.latestDecisionEvent = this.createDecisionEvent(
       "CANDIDATE",
       nowMs,
-      this.latestObservation.reason,
+      "Review fresh price structure and competing paths; experimental baseline does not authorize or veto a trade.",
       [],
     );
   }

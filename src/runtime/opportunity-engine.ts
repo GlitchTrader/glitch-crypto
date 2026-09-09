@@ -125,9 +125,10 @@ export class CryptoOpportunityEngine {
     const markPrice = finitePositive(this.mark?.mark_price) ?? lastPrice(long);
     const indexPrice = finitePositive(this.mark?.index_price);
     const fundingRate = finiteNumber(this.mark?.funding_rate);
-    const marketAgeMs = this.latestEventTime === null
-      ? null
-      : Math.max(0, nowMs - this.latestEventTime);
+    // A live book cannot make a stale mark (or vice versa) appear fresh.
+    const times = [this.book?.event_time, this.mark?.event_time, this.trades.at(-1)?.eventTime];
+    const marketAgeMs = times.some((t) => t == null) ? null
+      : Math.max(...times.map((t) => t! > nowMs + 1_000 ? Infinity : Math.max(0, nowMs - t!)));
     const spreadBps = top && markPrice
       ? ((top.ask - top.bid) / ((top.ask + top.bid) / 2)) * 10_000
       : null;
