@@ -32,7 +32,12 @@ Exit status:
 - auto-add margin disabled;
 - trading permission and positive USDT wallet/available balance;
 - maker and taker commission rates observed;
-- no BTCUSDT exposure and no open order.
+- no BTCUSDT exposure and no regular or conditional open order.
+
+The account capture reads both `GET /fapi/v1/openOrders` and
+`GET /fapi/v1/openAlgoOrders`. The latter includes pending stop/target orders;
+an absent or malformed response blocks readiness rather than proving a clean
+account. The reported open-order count includes both families.
 
 The report is sanitized and declares `mutation_authority: false`. A ready report
 does not authorize a Testnet order, production access, capital use, or deployment.

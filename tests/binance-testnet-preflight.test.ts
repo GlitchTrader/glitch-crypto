@@ -109,6 +109,29 @@ test("malformed private snapshots cannot masquerade as flat", () => {
   assert.equal(report.blockers.includes("open_order_snapshot_contract_invalid"), true);
 });
 
+test("a pending conditional order blocks readiness even with no regular orders or position", () => {
+  const evidence = readyEvidence();
+  evidence.private!.open_algo_orders = [{ symbol: "BTCUSDT", algoId: 123, orderType: "STOP_MARKET" }];
+  const before = JSON.stringify(evidence);
+  const report = evaluateBinanceUsdmTestnetPreflight(evidence);
+  assert.equal(report.status, "blocked");
+  assert.deepEqual(report.blockers, ["preexisting_open_orders_present"]);
+  assert.equal(report.account.open_order_count, 1);
+  assert.equal(report.mutation_authority, false);
+  assert.equal(JSON.stringify(evidence), before);
+});
+
+test("missing or malformed conditional-order evidence is unknown, never a clean account", () => {
+  for (const value of [undefined, null, {}, [null], ["invalid"]]) {
+    const evidence = readyEvidence();
+    evidence.private!.open_algo_orders = value;
+    const report = evaluateBinanceUsdmTestnetPreflight(evidence);
+    assert.equal(report.status, "blocked");
+    assert.ok(report.blockers.includes("open_algo_order_snapshot_contract_invalid"));
+    assert.equal(report.account.open_order_count, null);
+  }
+});
+
 function readyEvidence(): BinanceUsdmShadowEvidence {
   return {
     schema_version: "glitch.crypto.binance-usdm-shadow-evidence.v1",
@@ -158,6 +181,7 @@ function readyEvidence(): BinanceUsdmShadowEvidence {
       }],
       positions: [{ symbol: "BTCUSDT", positionAmt: "0" }],
       open_orders: [],
+      open_algo_orders: [],
       commission_rate: {
         symbol: "BTCUSDT",
         makerCommissionRate: "0.0002",

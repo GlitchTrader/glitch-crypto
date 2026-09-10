@@ -14,6 +14,7 @@ const SIGNED_GET_ENDPOINTS = new Set([
   "/fapi/v3/balance",
   "/fapi/v3/positionRisk",
   "/fapi/v1/openOrders",
+  "/fapi/v1/openAlgoOrders",
   "/fapi/v1/commissionRate",
   "/fapi/v1/positionSide/dual",
   "/fapi/v1/multiAssetsMargin",
@@ -57,6 +58,8 @@ export interface BinanceUsdmAccountSnapshot {
   balances: unknown;
   positions: unknown;
   open_orders: unknown;
+  // Older retained captures lack this field; preflight must treat that as unknown.
+  open_algo_orders?: unknown;
   commission_rate: unknown;
   position_mode: unknown;
   multi_asset_mode: unknown;
@@ -160,6 +163,7 @@ export class BinanceUsdmShadowClient {
       balances: await this.signedGet("/fapi/v3/balance"),
       positions: await this.signedGet("/fapi/v3/positionRisk", symbol),
       open_orders: await this.signedGet("/fapi/v1/openOrders", symbol),
+      open_algo_orders: await this.signedGet("/fapi/v1/openAlgoOrders", symbol),
       commission_rate: await this.signedGet("/fapi/v1/commissionRate", symbol),
       position_mode: await this.signedGet("/fapi/v1/positionSide/dual"),
       multi_asset_mode: await this.signedGet("/fapi/v1/multiAssetsMargin"),

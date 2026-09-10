@@ -21,7 +21,7 @@ capital transfer, and live acceptance are non-goals.
 - **FR-004**: BTCUSDT MUST be a trading perpetual supporting market, stop-market, and take-profit-market orders.
 - **FR-005**: One-way position mode, single-asset margin, isolated BTCUSDT margin, disabled auto-add margin, and leverage at or below the configured ceiling MUST be proven.
 - **FR-006**: Account trading permission, USDT wallet and available balance, and maker/taker commission rates MUST be proven.
-- **FR-007**: Pre-existing BTCUSDT exposure or any pre-existing open order MUST block readiness.
+- **FR-007**: Pre-existing BTCUSDT exposure or any pre-existing regular or conditional open order MUST block readiness. Capture both `openOrders` and `openAlgoOrders`; a missing family is unknown, not empty.
 - **FR-008**: Missing or malformed position and order snapshots MUST block readiness rather than appearing empty.
 - **FR-009**: The report MUST retain exact tick, market quantity step/minimum, minimum notional, and configured leverage ceiling.
 - **FR-010**: A blocked report MUST use deterministic blocker codes and MUST NOT mutate venue state.

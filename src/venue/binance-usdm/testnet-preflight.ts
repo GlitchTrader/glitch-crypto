@@ -123,8 +123,10 @@ function inspectAccount(
     .find((item) => item?.asset === "USDT") ?? null;
   const positionItems = array(snapshot.positions);
   const openOrderItems = array(snapshot.open_orders);
+  const openAlgoOrderItems = array(snapshot.open_algo_orders);
   const positions = positionItems.map(record).filter(notNull);
   const openOrders = openOrderItems.map(record).filter(notNull);
+  const openAlgoOrders = openAlgoOrderItems.map(record).filter(notNull);
 
   const dualSidePosition = boolean(positionMode?.dualSidePosition);
   const oneWayMode = dualSidePosition === null
@@ -172,11 +174,16 @@ function inspectAccount(
   if (openPositionCount > 0) {
     blockers.push("preexisting_symbol_exposure_present");
   }
-  if (openOrders.length > 0) {
+  if (openOrders.length > 0 || openAlgoOrders.length > 0) {
     blockers.push("preexisting_open_orders_present");
   }
-  if (!Array.isArray(snapshot.open_orders) || openOrders.length !== openOrderItems.length) {
+  const regularOrdersKnown = Array.isArray(snapshot.open_orders) && openOrders.length === openOrderItems.length;
+  const algoOrdersKnown = Array.isArray(snapshot.open_algo_orders) && openAlgoOrders.length === openAlgoOrderItems.length;
+  if (!regularOrdersKnown) {
     blockers.push("open_order_snapshot_contract_invalid");
+  }
+  if (!algoOrdersKnown) {
+    blockers.push("open_algo_order_snapshot_contract_invalid");
   }
 
   return {
@@ -191,7 +198,7 @@ function inspectAccount(
     maker_commission_rate: makerRate,
     taker_commission_rate: takerRate,
     open_position_count: openPositionCount,
-    open_order_count: openOrders.length,
+    open_order_count: regularOrdersKnown && algoOrdersKnown ? openOrders.length + openAlgoOrders.length : null,
   };
 }
 

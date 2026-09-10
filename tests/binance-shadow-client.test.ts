@@ -44,6 +44,7 @@ test("shadow capture uses only approved GET endpoints and never emits credential
       "/fapi/v3/balance": [{ asset: "USDT", balance: "1000" }],
       "/fapi/v3/positionRisk": [],
       "/fapi/v1/openOrders": [],
+      "/fapi/v1/openAlgoOrders": [{ symbol: "BTCUSDT", algoId: 123, orderType: "STOP_MARKET" }],
       "/fapi/v1/commissionRate": { symbol: "BTCUSDT", makerCommissionRate: "0.0002", takerCommissionRate: "0.0005" },
       "/fapi/v1/positionSide/dual": { dualSidePosition: false },
       "/fapi/v1/multiAssetsMargin": { multiAssetsMargin: false },
@@ -80,7 +81,12 @@ test("shadow capture uses only approved GET endpoints and never emits credential
   assert.equal(evidence.mutation_authority, false);
   assert.equal(evidence.credential_mode, "read_only_authenticated");
   assert.equal(calls.every((call) => call.method === "GET"), true);
-  assert.equal(calls.some((call) => new URL(call.url).pathname.includes("order") && new URL(call.url).pathname !== "/fapi/v1/openOrders"), false);
+  assert.equal(calls.some((call) => /order/i.test(new URL(call.url).pathname) &&
+    !["/fapi/v1/openOrders", "/fapi/v1/openAlgoOrders"].includes(new URL(call.url).pathname)), false);
+  assert.deepEqual(evidence.private?.open_algo_orders, [{ symbol: "BTCUSDT", algoId: 123, orderType: "STOP_MARKET" }]);
+  const algoCall = calls.find((call) => new URL(call.url).pathname === "/fapi/v1/openAlgoOrders");
+  if (!algoCall) throw new Error("conditional-order GET was not captured");
+  assert.equal(new URL(algoCall.url).searchParams.get("symbol"), "BTCUSDT");
 });
 
 test("the signed client rejects every endpoint outside the explicit read-only allowlist", async () => {
